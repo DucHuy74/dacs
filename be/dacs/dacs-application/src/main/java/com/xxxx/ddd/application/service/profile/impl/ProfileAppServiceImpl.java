@@ -7,6 +7,7 @@ import com.xxxx.ddd.application.service.profile.ProfileAppService;
 import com.xxxx.ddd.common.exception.ErrorCode;
 import com.xxxx.dddd.domain.exception.AppException;
 import com.xxxx.dddd.domain.identity.IdentityService;
+import com.xxxx.dddd.domain.model.entity.Profile;
 import com.xxxx.dddd.domain.repository.ProfileRepository;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -14,6 +15,7 @@ import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -68,5 +70,30 @@ public class ProfileAppServiceImpl implements ProfileAppService {
         profile = profileRepository.save(profile);
 
         return profileMapper.toProfileResponse(profile);
+    }
+
+    public Profile getOrCreateCurrentProfile() {
+
+        var authentication = SecurityContextHolder
+                .getContext()
+                .getAuthentication();
+
+        if (!(authentication instanceof JwtAuthenticationToken jwt)) {
+            throw new AppException(ErrorCode.UNAUTHORIZED);
+        }
+
+        String userId = jwt.getToken().getSubject();
+
+        return profileRepository.findByUserId(userId)
+                .orElseGet(() -> {
+                    Profile profile = Profile.builder()
+                            .userId(userId)
+                            .email(jwt.getToken().getClaim("email"))
+                            .username(jwt.getToken().getClaim("preferred_username"))
+                            .firstName(jwt.getToken().getClaim("given_name"))
+                            .lastName(jwt.getToken().getClaim("family_name"))
+                            .build();
+                    return profileRepository.save(profile);
+                });
     }
 }

@@ -2,6 +2,7 @@ package com.xxxx.ddd.controller.http;
 
 import com.xxxx.ddd.application.model.dto.request.RegistrationRequest;
 import com.xxxx.ddd.application.model.dto.response.ProfileResponse;
+import com.xxxx.ddd.application.service.profile.ProfileAppService;
 import com.xxxx.ddd.application.service.profile.impl.ProfileAppServiceImpl;
 import com.xxxx.ddd.common.dto.ApiResponse;
 import jakarta.validation.Valid;
@@ -18,7 +19,7 @@ import java.util.List;
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 @Slf4j
 public class ProfileController {
-    ProfileAppServiceImpl profileAppService;
+    ProfileAppService profileAppService;
 
     @PostMapping("/register")
     ApiResponse<ProfileResponse> register(@RequestBody @Valid RegistrationRequest request) {
