@@ -1,6 +1,6 @@
 package com.xxxx.ddd.infrastructure.persistence.repository;
 
-import com.xxxx.ddd.infrastructure.persistence.mapper.ProfileJPAMapper;
+import com.xxxx.ddd.infrastructure.persistence.mapper.ProfileJpaMapper;
 import com.xxxx.dddd.domain.model.entity.Profile;
 import com.xxxx.dddd.domain.repository.ProfileRepository;
 import lombok.RequiredArgsConstructor;
@@ -12,7 +12,7 @@ import java.util.Optional;
 @Repository
 @RequiredArgsConstructor
 public class ProfileInfrasRepositoryImpl implements ProfileRepository {
-    private final ProfileJPAMapper jpa;
+    private final ProfileJpaMapper jpa;
 
     @Override
     public Optional<Profile> findByUserId(String userId) {

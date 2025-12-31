@@ -28,8 +28,8 @@ public class Backlog {
     @Column(name = "blg_name", length = 100, nullable = false)
     String name;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "wsp_id", nullable = false)
+    @OneToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "wsp_id", nullable = false, unique = true)
     Workspace workspace;
 
     @CreationTimestamp

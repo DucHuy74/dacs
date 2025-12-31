@@ -5,6 +5,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;
 
-public interface ProfileJPAMapper extends JpaRepository<Profile, String> {
+public interface ProfileJpaMapper extends JpaRepository<Profile, String> {
     Optional<Profile> findByEmail(String email);
 }
