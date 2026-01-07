@@ -1,5 +1,6 @@
 package com.xxxx.dddd.domain.model.entity;
 
+import com.xxxx.dddd.domain.model.entity.workspace.Workspace;
 import com.xxxx.dddd.domain.model.enums.UserStoryStatus;
 import jakarta.persistence.*;
 import lombok.*;
@@ -33,17 +34,17 @@ public class UserStory {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "spr_id")
-    Sprint sprint;
+    Sprint sprint; // NULL = Backlog
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "blg_id")
-    Backlog backlog;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "wsp_id", nullable = false)
+    Workspace workspace;
 
     @CreationTimestamp
-    @Column(name = "created_at", updatable = false)
     LocalDateTime createdAt;
 
     @UpdateTimestamp
-    @Column(name = "updated_at")
     LocalDateTime updatedAt;
 }
+
+

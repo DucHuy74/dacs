@@ -63,7 +63,7 @@ public class InvitationAppServiceImpl implements InvitationAppService {
                 .orElseThrow(() -> new AppException(ErrorCode.WORKSPACE_NOT_FOUND));
 
         if (workspaceMemberRepository
-                .findByWorkspace_IdAndProfile_ProfileId(
+                .findByWorkspaceIdAndUserId(
                         workspace.getId(),
                         profile.getUserId())
                 .isPresent()) {

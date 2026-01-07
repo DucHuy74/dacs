@@ -7,9 +7,10 @@ import java.util.List;
 import java.util.Optional;
 
 public interface WorkspaceMemberJpaMapper extends JpaRepository<WorkspaceMember, String> {
-    Optional<WorkspaceMember>
-    findByWorkspace_IdAndProfile_ProfileId(String workspaceId, String profileId);
-
+    Optional<WorkspaceMember> findByWorkspace_IdAndProfile_UserId(
+            String workspaceId,
+            String userId
+    );
 
     List<WorkspaceMember> findAllByProfile_ProfileId(String userId);
 

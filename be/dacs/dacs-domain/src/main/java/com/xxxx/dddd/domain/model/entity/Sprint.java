@@ -45,6 +45,6 @@ public class Sprint {
     @Column(name = "updated_at")
     LocalDateTime updatedAt;
 
-    @OneToMany(mappedBy = "sprint", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "sprint")
     Set<UserStory> userStories;
 }

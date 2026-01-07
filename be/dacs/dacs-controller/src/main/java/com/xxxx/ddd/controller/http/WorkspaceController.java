@@ -42,7 +42,7 @@ public class WorkspaceController {
 
     @PutMapping("/{workspaceId}")
     public ApiResponse<WorkspaceResponse> updateWorkspace(
-            @PathVariable String workspaceId,
+            @PathVariable("workspaceId") String workspaceId,
             @RequestBody WorkspaceUpdateRequest request) {
 
         return ApiResponse.<WorkspaceResponse>builder()
@@ -52,7 +52,7 @@ public class WorkspaceController {
 
     @PostMapping("/{workspaceId}/invitations")
     public ApiResponse<Void> addMember(
-            @PathVariable String workspaceId,
+            @PathVariable("workspaceId") String workspaceId,
             @RequestBody WorkspaceAddMemberRequest request) {
 
         workspaceService.inviteMemberToWorkspace(workspaceId, request);
@@ -71,7 +71,7 @@ public class WorkspaceController {
     }
 
     @DeleteMapping("/{workspaceId}")
-    public ApiResponse<Void> deleteWorkspace(@PathVariable String workspaceId) {
+    public ApiResponse<Void> deleteWorkspace(@PathVariable("workspaceId")String workspaceId) {
         workspaceService.deleteWorkspace(workspaceId);
         return ApiResponse.<Void>builder()
                 .message("Workspace deleted successfully")
@@ -80,7 +80,7 @@ public class WorkspaceController {
 
     @GetMapping("/{workspaceId}/members")
     public ApiResponse<List<WorkspaceMemberResponse>> getMembers(
-            @PathVariable String workspaceId
+            @PathVariable("workspaceId") String workspaceId
     ) {
         return ApiResponse.<List<WorkspaceMemberResponse>>builder()
                 .result(workspaceService.getMembers(workspaceId))

@@ -99,9 +99,9 @@ public class WorkspaceAppServiceImpl implements WorkspaceAppService {
 
         WorkspaceMember member =
                 workspaceMemberRepository
-                        .findByWorkspace_IdAndProfile_ProfileId(
+                        .findByWorkspaceIdAndUserId(
                                 workspaceId,
-                                profile.getProfileId()
+                                profile.getUserId()
                         )
                         .orElseThrow(() -> new AppException(ErrorCode.NO_PERMISSION));
 
@@ -124,9 +124,9 @@ public class WorkspaceAppServiceImpl implements WorkspaceAppService {
 
         WorkspaceMember admin =
                 workspaceMemberRepository
-                        .findByWorkspace_IdAndProfile_ProfileId(
+                        .findByWorkspaceIdAndUserId(
                                 workspaceId,
-                                inviter.getProfileId()
+                                inviter.getUserId()
                         )
                         .orElseThrow(() -> new AppException(ErrorCode.NO_PERMISSION));
 
@@ -172,7 +172,7 @@ public class WorkspaceAppServiceImpl implements WorkspaceAppService {
         Profile profile = profileAppService.getOrCreateCurrentProfile();
 
         return workspaceMemberRepository
-                .findAllByProfile_ProfileId(profile.getProfileId())
+                .findAllByUserId(profile.getProfileId())
                 .stream()
                 .map(member -> {
                     Workspace workspace = member.getWorkspace();
@@ -207,9 +207,9 @@ public class WorkspaceAppServiceImpl implements WorkspaceAppService {
 
         WorkspaceMember admin =
                 workspaceMemberRepository
-                        .findByWorkspace_IdAndProfile_ProfileId(
+                        .findByWorkspaceIdAndUserId(
                                 workspaceId,
-                                profile.getProfileId()
+                                profile.getUserId()
                         )
                         .orElseThrow(() -> new AppException(ErrorCode.NO_PERMISSION));
 
@@ -226,14 +226,14 @@ public class WorkspaceAppServiceImpl implements WorkspaceAppService {
         Profile profile = profileAppService.getOrCreateCurrentProfile();
 
         workspaceMemberRepository
-                .findByWorkspace_IdAndProfile_ProfileId(
+                .findByWorkspaceIdAndUserId(
                         workspaceId,
-                        profile.getProfileId()
+                        profile.getUserId()
                 )
                 .orElseThrow(() -> new AppException(ErrorCode.NO_PERMISSION));
 
         return workspaceMemberRepository
-                .findAllByWorkspace_Id(workspaceId)
+                .findAllByWorkspaceId(workspaceId)
                 .stream()
                 .map(m -> WorkspaceMemberResponse.builder()
                         .userId(m.getProfile().getUserId())

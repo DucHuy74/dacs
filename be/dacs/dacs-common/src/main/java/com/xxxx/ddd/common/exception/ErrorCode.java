@@ -24,6 +24,11 @@ public enum ErrorCode {
     INVITE_USED(1017, "Invite code has been used", HttpStatus.BAD_REQUEST),
     INVITE_EXPIRED(1018, "Invite code has expired", HttpStatus.BAD_REQUEST),
     INVITATION_ALREADY_SENT(1019, "Invitation already sent", HttpStatus.BAD_REQUEST),
+    SPRINT_NOT_FOUND(1020, "Sprint not found", HttpStatus.NOT_FOUND),
+    SPRINT_INVALID_STATE(1021, "Sprint is not in the correct state", HttpStatus.BAD_REQUEST),
+    SPRINT_ALREADY_ACTIVE(1022, "Sprint is already active", HttpStatus.BAD_REQUEST),
+    USER_STORY_NOT_FOUND(1023, "User story not found", HttpStatus.NOT_FOUND),
+    INVALID_WORKSPACE(1024, "Invalid workspace", HttpStatus.BAD_REQUEST)
     ;
 
     ErrorCode(int code, String message, HttpStatusCode statusCode) {

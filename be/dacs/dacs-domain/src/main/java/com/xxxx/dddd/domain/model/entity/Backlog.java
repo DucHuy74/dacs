@@ -39,7 +39,4 @@ public class Backlog {
     @UpdateTimestamp
     @Column(name = "updated_at")
     LocalDateTime updatedAt;
-
-    @OneToMany(mappedBy = "backlog", cascade = CascadeType.ALL, orphanRemoval = true)
-    Set<UserStory> userStories;
 }
