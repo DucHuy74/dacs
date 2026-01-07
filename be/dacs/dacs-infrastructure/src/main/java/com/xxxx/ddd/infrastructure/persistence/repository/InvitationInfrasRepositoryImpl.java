@@ -11,7 +11,7 @@ import java.util.Optional;
 
 @Repository
 @RequiredArgsConstructor
-public class InvitationInfrasRepository implements InvitationRepository {
+public class InvitationInfrasRepositoryImpl implements InvitationRepository {
 
     private final InvitationJpaMapper jpa;
 

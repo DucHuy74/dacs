@@ -11,24 +11,24 @@ import java.util.Optional;
 
 @Repository
 @RequiredArgsConstructor
-public class WorkspaceMemberInfrasRepository implements WorkspaceMemberRepository {
+public class WorkspaceMemberInfrasRepositoryImpl implements WorkspaceMemberRepository {
     private final WorkspaceMemberJpaMapper jpa;
 
     @Override
-    public Optional<WorkspaceMember> findByWorkspace_IdAndProfile_ProfileId(
+    public Optional<WorkspaceMember> findByWorkspaceIdAndUserId(
             String workspaceId,
             String userId
     ) {
-        return jpa.findByWorkspace_IdAndProfile_ProfileId(workspaceId, userId);
+        return jpa.findByWorkspace_IdAndProfile_UserId(workspaceId, userId);
     }
 
     @Override
-    public List<WorkspaceMember> findAllByProfile_ProfileId(String userId) {
+    public List<WorkspaceMember> findAllByUserId(String userId) {
         return jpa.findAllByProfile_ProfileId(userId);
     }
 
     @Override
-    public List<WorkspaceMember> findAllByWorkspace_Id(String workspaceId) {
+    public List<WorkspaceMember> findAllByWorkspaceId(String workspaceId) {
         return jpa.findAllByWorkspace_Id(workspaceId);
     }
 

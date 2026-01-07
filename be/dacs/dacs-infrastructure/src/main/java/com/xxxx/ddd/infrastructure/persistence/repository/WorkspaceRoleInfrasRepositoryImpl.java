@@ -12,7 +12,7 @@ import java.util.Optional;
 
 @Repository
 @RequiredArgsConstructor
-public class WorkspaceRoleInfrasRepository implements WorkspaceRoleRepository {
+public class WorkspaceRoleInfrasRepositoryImpl implements WorkspaceRoleRepository {
 
     private final WorkspaceRoleJpaMapper jpa;
 

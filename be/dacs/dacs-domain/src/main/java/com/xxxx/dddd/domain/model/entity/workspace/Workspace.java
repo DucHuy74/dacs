@@ -3,6 +3,7 @@ package com.xxxx.dddd.domain.model.entity.workspace;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.xxxx.dddd.domain.model.entity.Backlog;
 import com.xxxx.dddd.domain.model.entity.Sprint;
+import com.xxxx.dddd.domain.model.entity.UserStory;
 import com.xxxx.dddd.domain.model.enums.WorkspaceAccess;
 import com.xxxx.dddd.domain.model.enums.WorkspaceType;
 import jakarta.persistence.*;
@@ -64,4 +65,7 @@ public class Workspace {
     @JsonIgnore
     @OneToMany(mappedBy = "workspace", fetch = FetchType.LAZY)
     Set<Sprint> sprints;
+
+    @OneToMany(mappedBy = "workspace")
+    Set<UserStory> userStories;
 }

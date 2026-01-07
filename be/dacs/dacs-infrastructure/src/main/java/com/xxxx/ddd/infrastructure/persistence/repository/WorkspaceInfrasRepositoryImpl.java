@@ -10,7 +10,7 @@ import java.util.Optional;
 
 @Repository
 @RequiredArgsConstructor
-public class WorkspaceInfrasRepository implements WorkspaceRepository {
+public class WorkspaceInfrasRepositoryImpl implements WorkspaceRepository {
 
     private final WorkspaceJpaMapper jpa;
 
