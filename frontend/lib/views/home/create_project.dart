@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../viewmodels/home/create_project_view_model.dart';
-import 'invite_to_project.dart';
+import 'invite_to_project_page.dart';
 import '../../models/home/workspace_model.dart';
 
 class CreateProjectPage extends StatefulWidget {
@@ -60,11 +60,7 @@ class _CreateProjectPageState extends State<CreateProjectPage> {
       Navigator.of(context).push(
         MaterialPageRoute(
           builder: (context) => InviteToProjectPage(
-            projectName: _nameController.text,
-            // workspaceId: newWorkspaceId, // Truyền ID an toàn
-            selectedTemplate: widget.selectedTemplate,
-            selectedManagement: _selectedManagement,
-            selectedAccess: _selectedAccess,
+            workspaceId: newWorkspaceId, // Truyền ID an toàn
           ),
         ),
       );

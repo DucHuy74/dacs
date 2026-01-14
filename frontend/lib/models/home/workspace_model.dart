@@ -58,8 +58,7 @@ class WorkspaceData {
     );
   }
 }
-
-// 4. Class WorkspaceResponse (Đối tượng gốc trả về từ API)
+// 4. Class WorkspaceResponse (Đối tượng phản hồi chính)
 class WorkspaceResponse {
   final int code;
   final String message;
