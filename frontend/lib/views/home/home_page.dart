@@ -133,7 +133,7 @@ class _HomePageState extends State<HomePage> {
           icon: const Icon(Icons.notifications_outlined, color: Colors.white),
           onPressed: () {},
         ),
-        IconButton( 
+        IconButton(
           icon: const Icon(Icons.help_outline, color: Colors.white),
           onPressed: () {},
         ),
