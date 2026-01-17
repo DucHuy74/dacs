@@ -4,7 +4,6 @@ public interface InvitationAsyncPort {
     void sendInviteEmail(
             String to,
             String workspaceName,
-            String inviterName,
-            String invitationId
+            String inviterName
     );
 }

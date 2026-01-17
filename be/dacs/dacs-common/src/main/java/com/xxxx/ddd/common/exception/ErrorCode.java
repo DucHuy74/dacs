@@ -28,7 +28,8 @@ public enum ErrorCode {
     SPRINT_INVALID_STATE(1021, "Sprint is not in the correct state", HttpStatus.BAD_REQUEST),
     SPRINT_ALREADY_ACTIVE(1022, "Sprint is already active", HttpStatus.BAD_REQUEST),
     USER_STORY_NOT_FOUND(1023, "User story not found", HttpStatus.NOT_FOUND),
-    INVALID_WORKSPACE(1024, "Invalid workspace", HttpStatus.BAD_REQUEST)
+    INVALID_WORKSPACE(1024, "Invalid workspace", HttpStatus.BAD_REQUEST),
+    NOTIFICATION_NOT_FOUND(1025, "Notification not found", HttpStatus.NOT_FOUND),
     ;
 
     ErrorCode(int code, String message, HttpStatusCode statusCode) {

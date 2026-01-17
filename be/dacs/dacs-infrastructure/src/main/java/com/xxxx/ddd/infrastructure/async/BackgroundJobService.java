@@ -16,15 +16,13 @@ public class BackgroundJobService implements InvitationAsyncPort {
     public void sendInviteEmail(
             String to,
             String workspaceName,
-            String inviterName,
-            String invitationId
+            String inviterName
     ) {
         jobScheduler.enqueue(() ->
                 emailService.sendInviteEmail(
                         to,
                         workspaceName,
-                        inviterName,
-                        invitationId
+                        inviterName
                 )
         );
     }

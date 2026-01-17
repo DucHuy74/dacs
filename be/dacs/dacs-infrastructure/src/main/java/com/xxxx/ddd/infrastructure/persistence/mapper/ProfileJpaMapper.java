@@ -7,4 +7,5 @@ import java.util.Optional;
 
 public interface ProfileJpaMapper extends JpaRepository<Profile, String> {
     Optional<Profile> findByEmail(String email);
+    Optional<Profile> findByUserId(String userId);
 }

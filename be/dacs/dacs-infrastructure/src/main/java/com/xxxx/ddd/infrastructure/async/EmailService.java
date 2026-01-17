@@ -17,25 +17,23 @@ public class EmailService {
     public void sendInviteEmail(
             String to,
             String workspaceName,
-            String inviterName,
-            String invitationId
+            String inviterName
     ) throws MessagingException {
 
         MimeMessage message = mailSender.createMimeMessage();
         MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
 
-        String acceptUrl = "http://localhost:8080/api/invitations/accept?token=" + invitationId;
-        String denyUrl   = "http://localhost:8080/api/invitations/deny?token=" + invitationId;
-
         helper.setTo(to);
-        helper.setSubject("Workspace Invitation");
+        helper.setSubject("You're invited to join a workspace");
         helper.setFrom("Workspace App <no-reply@workspace.com>");
 
         helper.setText("""
-<table width="100%%" cellpadding="0" cellspacing="0" style="font-family:Arial,sans-serif;background:#f6f8fa;padding:30px;">
+<table width="100%%" cellpadding="0" cellspacing="0"
+       style="font-family:Arial,sans-serif;background:#f6f8fa;padding:30px;">
   <tr>
     <td align="center">
-      <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:8px;padding:30px;">
+      <table width="600" cellpadding="0" cellspacing="0"
+             style="background:#ffffff;border-radius:8px;padding:30px;">
         <tr>
           <td style="font-size:18px;font-weight:bold;color:#333;">
             Workspace Invitation
@@ -47,25 +45,8 @@ public class EmailService {
           </td>
         </tr>
         <tr>
-          <td style="padding-top:30px;text-align:center;">
-            <a href="%s"
-               style="display:inline-block;padding:12px 24px;
-                      background:#4CAF50;color:#ffffff;
-                      text-decoration:none;border-radius:6px;
-                      font-weight:bold;">
-              Accept Invitation
-            </a>
-          </td>
-        </tr>
-        <tr>
-          <td style="padding-top:15px;text-align:center;">
-            <a href="%s"
-               style="display:inline-block;padding:10px 20px;
-                      background:#e0e0e0;color:#555;
-                      text-decoration:none;border-radius:6px;
-                      font-size:13px;">
-              Decline
-            </a>
+          <td style="padding-top:20px;font-size:14px;color:#555;">
+            Please log in to the app to accept or decline this invitation.
           </td>
         </tr>
         <tr>
@@ -77,8 +58,7 @@ public class EmailService {
     </td>
   </tr>
 </table>
-""".formatted(inviterName, workspaceName, acceptUrl, denyUrl), true);
-
+""".formatted(inviterName, workspaceName), true);
 
         mailSender.send(message);
     }

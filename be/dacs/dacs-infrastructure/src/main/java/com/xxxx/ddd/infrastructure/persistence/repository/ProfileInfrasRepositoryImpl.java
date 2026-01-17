@@ -16,7 +16,7 @@ public class ProfileInfrasRepositoryImpl implements ProfileRepository {
 
     @Override
     public Optional<Profile> findByUserId(String userId) {
-        return jpa.findById(userId);
+        return jpa.findByUserId(userId);
     }
 
     @Override
