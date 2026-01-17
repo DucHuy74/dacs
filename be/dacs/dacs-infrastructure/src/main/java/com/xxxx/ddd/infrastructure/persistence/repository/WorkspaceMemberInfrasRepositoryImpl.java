@@ -15,7 +15,7 @@ public class WorkspaceMemberInfrasRepositoryImpl implements WorkspaceMemberRepos
     private final WorkspaceMemberJpaMapper jpa;
 
     @Override
-    public Optional<WorkspaceMember> findByWorkspaceIdAndUserId(
+    public Optional<WorkspaceMember> findByWorkspace_IdAndProfile_UserId(
             String workspaceId,
             String userId
     ) {
@@ -23,12 +23,12 @@ public class WorkspaceMemberInfrasRepositoryImpl implements WorkspaceMemberRepos
     }
 
     @Override
-    public List<WorkspaceMember> findAllByUserId(String userId) {
-        return jpa.findAllByProfile_ProfileId(userId);
+    public List<WorkspaceMember> findAllByProfile_UserId(String userId) {
+        return jpa.findAllByProfile_UserId(userId);
     }
 
     @Override
-    public List<WorkspaceMember> findAllByWorkspaceId(String workspaceId) {
+    public List<WorkspaceMember> findAllByWorkspace_Id(String workspaceId) {
         return jpa.findAllByWorkspace_Id(workspaceId);
     }
 

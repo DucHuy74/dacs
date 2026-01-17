@@ -55,7 +55,7 @@ public class ProfileAppServiceImpl implements ProfileAppService {
     @Override
     public ProfileResponse register(RegistrationRequest request) {
 
-        // 👉 delegate toàn bộ Keycloak logic
+        //delegate toàn bộ Keycloak logic
         String userId = identityService.createUser(
                 request.getUsername(),
                 request.getFirstName(),

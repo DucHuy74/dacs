@@ -5,6 +5,7 @@ import com.xxxx.dddd.domain.model.entity.Notification;
 import com.xxxx.dddd.domain.model.entity.Profile;
 import com.xxxx.dddd.domain.repository.NotificationRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -30,4 +31,8 @@ public class NotificationInfrasRepositoryImpl implements NotificationRepository 
         return jpa.findById(notificationId);
     }
 
+    @Override
+    public int markAllAsReadByUserId(@Param("userId") String userId){
+        return jpa.markAllAsReadByUserId(userId);
+    }
 }

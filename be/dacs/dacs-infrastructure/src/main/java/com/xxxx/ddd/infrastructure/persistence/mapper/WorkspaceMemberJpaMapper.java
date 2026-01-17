@@ -12,7 +12,7 @@ public interface WorkspaceMemberJpaMapper extends JpaRepository<WorkspaceMember,
             String userId
     );
 
-    List<WorkspaceMember> findAllByProfile_ProfileId(String userId);
+    List<WorkspaceMember> findAllByProfile_UserId(String userId);
 
     List<WorkspaceMember> findAllByWorkspace_Id(String workspaceId);
 }

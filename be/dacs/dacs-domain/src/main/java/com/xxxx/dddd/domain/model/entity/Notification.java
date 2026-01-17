@@ -28,6 +28,7 @@ public class Notification {
     String content;
 
     @Enumerated(EnumType.STRING)
+    @Column(length = 50)
     NotificationType type;
 
     String referenceId;

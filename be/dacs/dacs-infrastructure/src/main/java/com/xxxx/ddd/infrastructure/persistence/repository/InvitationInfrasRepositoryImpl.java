@@ -7,6 +7,7 @@ import com.xxxx.dddd.domain.repository.InvitationRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -21,16 +22,21 @@ public class InvitationInfrasRepositoryImpl implements InvitationRepository {
     }
 
     @Override
-    public boolean existsByWorkspaceIdAndEmailAndStatus(
+    public boolean existsByWorkspaceIdAndInviteeUserIdAndStatus(
             String workspaceId,
-            String email,
+            String inviteeUserId,
             InvitationStatus status
     ){
-        return jpa.existsByWorkspaceIdAndEmailAndStatus(workspaceId, email, status);
+        return jpa.existsByWorkspaceIdAndInviteeUserIdAndStatus(workspaceId, inviteeUserId, status);
     }
 
     @Override
     public Optional<WorkspaceInvitation> findById(String id) {
         return jpa.findById(id);
+    }
+
+    @Override
+    public List<WorkspaceInvitation> findByInviteeUserIdAndStatus(String inviteeUserId, InvitationStatus status) {
+        return jpa.findByInviteeUserIdAndStatus(inviteeUserId, status);
     }
 }
