@@ -9,6 +9,7 @@ import com.xxxx.ddd.common.exception.ErrorCode;
 import com.xxxx.dddd.domain.exception.AppException;
 import com.xxxx.dddd.domain.model.entity.UserStory;
 import com.xxxx.dddd.domain.model.entity.workspace.Workspace;
+import com.xxxx.dddd.domain.model.enums.SprintStatus;
 import com.xxxx.dddd.domain.model.enums.UserStoryStatus;
 import com.xxxx.dddd.domain.repository.UserStoryRepository;
 import com.xxxx.dddd.domain.repository.WorkspaceRepository;
@@ -38,7 +39,7 @@ public class UserStoryAppServiceImpl implements UserStoryAppService {
 
         UserStory story = userStoryMapper.toEntity(request);
         story.setWorkspace(workspace);
-        story.setStatus(UserStoryStatus.ToDo); // backlog
+        story.setStatus(UserStoryStatus.ToDo);
         story.setSprint(null);
 
         return userStoryMapper.toResponse(
@@ -72,6 +73,22 @@ public class UserStoryAppServiceImpl implements UserStoryAppService {
 
         UserStory story = userStoryRepository.findById(userStoryId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_STORY_NOT_FOUND));
+
+        if(story.getSprint() == null){
+            throw new AppException(ErrorCode.USER_STORY_NOT_IN_SPRINT);
+        }
+
+        if (story.getSprint().getStatus() != SprintStatus.InProgress) {
+            throw new AppException(ErrorCode.SPRINT_NOT_ACTIVE);
+        }
+
+        if(!List.of(
+                UserStoryStatus.ToDo,
+                UserStoryStatus.InProgress,
+                UserStoryStatus.Done
+        ).contains(request.getStatus())) {
+            throw new AppException(ErrorCode.INVALID_USER_STORY_STATUS);
+        }
 
         story.setStatus(request.getStatus());
 

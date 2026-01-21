@@ -30,6 +30,9 @@ public enum ErrorCode {
     USER_STORY_NOT_FOUND(1023, "User story not found", HttpStatus.NOT_FOUND),
     INVALID_WORKSPACE(1024, "Invalid workspace", HttpStatus.BAD_REQUEST),
     NOTIFICATION_NOT_FOUND(1025, "Notification not found", HttpStatus.NOT_FOUND),
+    USER_STORY_NOT_IN_SPRINT(1026, "User story is not in sprint", HttpStatus.BAD_REQUEST),
+    SPRINT_NOT_ACTIVE(1027, "Sprint is not active", HttpStatus.BAD_REQUEST),
+    INVALID_USER_STORY_STATUS(1028, "Invalid user story status", HttpStatus.BAD_REQUEST),
     ;
 
     ErrorCode(int code, String message, HttpStatusCode statusCode) {

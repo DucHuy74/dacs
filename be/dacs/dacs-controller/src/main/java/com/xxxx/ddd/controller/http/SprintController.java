@@ -26,7 +26,7 @@ public class SprintController {
     // Create sprint in workspace
     @PostMapping("/workspace/{workspaceId}")
     public ResponseEntity<ApiResponse<SprintResponse>> createSprint(
-            @PathVariable String workspaceId,
+            @PathVariable("workspaceId") String workspaceId,
             @RequestBody SprintCreateRequest request
     ) {
         return ResponseEntity.ok(
@@ -40,7 +40,7 @@ public class SprintController {
     // Get all sprints of workspace
     @GetMapping("/workspace/{workspaceId}")
     public ResponseEntity<ApiResponse<List<SprintResponse>>> getSprints(
-            @PathVariable String workspaceId
+            @PathVariable("workspaceId") String workspaceId
     ) {
         return ResponseEntity.ok(
                 ApiResponse.<List<SprintResponse>>builder()
@@ -53,7 +53,7 @@ public class SprintController {
     // Start sprint
     @PostMapping("/{sprintId}/start")
     public ResponseEntity<ApiResponse<Void>> startSprint(
-            @PathVariable String sprintId
+            @PathVariable("sprintId") String sprintId
     ) {
         sprintService.startSprint(sprintId);
         return ResponseEntity.ok(
@@ -66,7 +66,7 @@ public class SprintController {
     // Complete sprint
     @PostMapping("/{sprintId}/complete")
     public ResponseEntity<ApiResponse<Void>> completeSprint(
-            @PathVariable String sprintId
+            @PathVariable("sprintId") String sprintId
     ) {
         sprintService.completeSprint(sprintId);
         return ResponseEntity.ok(
@@ -79,8 +79,8 @@ public class SprintController {
     // Add user story to sprint
     @PostMapping("/{sprintId}/user-stories/{userStoryId}")
     public ResponseEntity<ApiResponse<Void>> addUserStoryToSprint(
-            @PathVariable String sprintId,
-            @PathVariable String userStoryId
+            @PathVariable("sprintId") String sprintId,
+            @PathVariable("userStoryId") String userStoryId
     ) {
         sprintService.addUserStoryToSprint(sprintId, userStoryId);
         return ResponseEntity.ok(
@@ -93,7 +93,7 @@ public class SprintController {
     // Remove userstory from sprint (move to backlog)
     @DeleteMapping("/user-stories/{userStoryId}")
     public ResponseEntity<ApiResponse<Void>> removeUserStoryFromSprint(
-            @PathVariable String userStoryId
+            @PathVariable("userStoryId") String userStoryId
     ) {
         sprintService.removeUserStoryFromSprint(userStoryId);
         return ResponseEntity.ok(
@@ -106,7 +106,7 @@ public class SprintController {
     // Get user stories of sprint
     @GetMapping("/{sprintId}/user-stories")
     public ResponseEntity<ApiResponse<List<UserStoryResponse>>> getUserStoriesOfSprint(
-            @PathVariable String sprintId
+            @PathVariable("sprintId") String sprintId
     ) {
         return ResponseEntity.ok(
                 ApiResponse.<List<UserStoryResponse>>builder()
