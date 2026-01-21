@@ -26,7 +26,7 @@ public class UserStoryController {
     // Create user story
     @PostMapping("/workspace/{workspaceId}")
     public ResponseEntity<ApiResponse<UserStoryResponse>> createUserStory(
-            @PathVariable String workspaceId,
+            @PathVariable("workspaceId") String workspaceId,
             @RequestBody UserStoryCreateRequest request
     ) {
         return ResponseEntity.ok(
@@ -40,7 +40,7 @@ public class UserStoryController {
     // Get backlog of workspace
     @GetMapping("/workspace/{workspaceId}/backlog")
     public ResponseEntity<ApiResponse<List<UserStoryResponse>>> getBacklog(
-            @PathVariable String workspaceId
+            @PathVariable("workspaceId") String workspaceId
     ) {
         return ResponseEntity.ok(
                 ApiResponse.<List<UserStoryResponse>>builder()
@@ -53,7 +53,7 @@ public class UserStoryController {
     // Update status
     @PutMapping("/{userStoryId}/status")
     public ResponseEntity<ApiResponse<UserStoryResponse>> updateStatus(
-            @PathVariable String userStoryId,
+            @PathVariable("userStoryId") String userStoryId,
             @RequestBody UserStoryStatusUpdateRequest request
     ) {
         return ResponseEntity.ok(
@@ -67,7 +67,7 @@ public class UserStoryController {
     // Delete user story
     @DeleteMapping("/{userStoryId}")
     public ResponseEntity<ApiResponse<Void>> delete(
-            @PathVariable String userStoryId
+            @PathVariable("userStoryId") String userStoryId
     ) {
         userStoryService.delete(userStoryId);
         return ResponseEntity.ok(

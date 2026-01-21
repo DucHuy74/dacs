@@ -62,6 +62,7 @@ public class SprintAppServiceImpl implements SprintAppService {
 
     //Start Sprint
     @Override
+    @Transactional
     public void startSprint(String sprintId) {
 
         Sprint sprint = sprintRepository.findById(sprintId)
@@ -104,6 +105,7 @@ public class SprintAppServiceImpl implements SprintAppService {
         for (UserStory story : stories) {
             if (story.getStatus() != UserStoryStatus.Done) {
                 story.setSprint(null); //về backlog
+                story.setStatus(UserStoryStatus.ToDo);
             }
         }
     }
