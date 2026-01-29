@@ -32,6 +32,7 @@ public class UserStoryAppServiceImpl implements UserStoryAppService {
     UserStoryMapper userStoryMapper;
 
     @Override
+    @Transactional
     public UserStoryResponse create(String workspaceId, UserStoryCreateRequest request) {
 
         Workspace workspace = workspaceRepository.findById(workspaceId)
@@ -66,6 +67,7 @@ public class UserStoryAppServiceImpl implements UserStoryAppService {
     }
 
     @Override
+    @Transactional
     public UserStoryResponse updateStatus(
             String userStoryId,
             UserStoryStatusUpdateRequest request
@@ -96,6 +98,7 @@ public class UserStoryAppServiceImpl implements UserStoryAppService {
     }
 
     @Override
+    @Transactional
     public void delete(String userStoryId) {
 
         userStoryRepository.findById(userStoryId)
