@@ -7,6 +7,7 @@ import com.xxxx.ddd.application.model.dto.response.SprintResponse;
 import com.xxxx.ddd.application.model.dto.response.UserStoryResponse;
 import com.xxxx.ddd.application.service.sprint.SprintAppService;
 import com.xxxx.ddd.common.exception.ErrorCode;
+import com.xxxx.dddd.domain.event.UserStoryCreatedEvent;
 import com.xxxx.dddd.domain.exception.AppException;
 import com.xxxx.dddd.domain.model.entity.Sprint;
 import com.xxxx.dddd.domain.model.entity.UserStory;
@@ -20,6 +21,7 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,8 +38,11 @@ public class SprintAppServiceImpl implements SprintAppService {
     SprintMapper sprintMapper;
     UserStoryMapper userStoryMapper;
 
+    ApplicationEventPublisher publisher;
+
     //Create Sprint
     @Override
+    @Transactional
     public SprintResponse createSprint(String workspaceId, SprintCreateRequest request) {
 
         Workspace workspace = workspaceRepository.findById(workspaceId)
@@ -84,10 +89,22 @@ public class SprintAppServiceImpl implements SprintAppService {
         }
 
         sprint.setStatus(SprintStatus.InProgress);
+
+        List<UserStory> stories = userStoryRepository.findBySprint_Id(sprintId);
+        for (UserStory story : stories) {
+            publisher.publishEvent(
+                    new UserStoryCreatedEvent(
+                            story.getId(),
+                            story.getStoryText(),
+                            sprintId
+                    )
+            );
+        }
     }
 
     //Complete Sprint
     @Override
+    @Transactional
     public void completeSprint(String sprintId) {
 
         Sprint sprint = sprintRepository.findById(sprintId)
@@ -112,6 +129,7 @@ public class SprintAppServiceImpl implements SprintAppService {
 
     // Add userstories to sprint
     @Override
+    @Transactional
     public void addUserStoryToSprint(String sprintId, String userStoryId) {
 
         Sprint sprint = sprintRepository.findById(sprintId)
@@ -129,6 +147,7 @@ public class SprintAppServiceImpl implements SprintAppService {
 
     //Remove user story khỏi sprint (về backlog)
     @Override
+    @Transactional
     public void removeUserStoryFromSprint(String userStoryId) {
 
         UserStory story = userStoryRepository.findById(userStoryId)
