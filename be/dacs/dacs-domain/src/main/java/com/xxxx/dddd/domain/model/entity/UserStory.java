@@ -40,6 +40,11 @@ public class UserStory {
     @JoinColumn(name = "wsp_id", nullable = false)
     Workspace workspace;
 
+    @ManyToOne
+    @JoinColumn(name = "backlog_id")
+    private Backlog backlog;
+
+
     @CreationTimestamp
     LocalDateTime createdAt;
 

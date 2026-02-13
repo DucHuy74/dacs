@@ -14,10 +14,12 @@ public interface UserStoryMapper {
     @Mapping(target = "status", constant = "ToDo")
     @Mapping(target = "sprint", ignore = true)
     @Mapping(target = "workspace", ignore = true)
+    @Mapping(target = "backlog", ignore = true)
     UserStory toEntity(UserStoryCreateRequest request);
 
     @Mapping(target = "sprintId", source = "sprint.id")
     @Mapping(target = "workspaceId", source = "workspace.id")
+    @Mapping(target = "backlogId", source = "backlog.id")
     UserStoryResponse toResponse(UserStory entity);
 
     List<UserStoryResponse> toResponses(List<UserStory> entities);
