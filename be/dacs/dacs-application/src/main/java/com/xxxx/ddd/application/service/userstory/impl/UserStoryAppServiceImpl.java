@@ -6,7 +6,9 @@ import com.xxxx.ddd.application.model.dto.request.UserStoryStatusUpdateRequest;
 import com.xxxx.ddd.application.model.dto.response.UserStoryResponse;
 import com.xxxx.ddd.application.service.userstory.UserStoryAppService;
 import com.xxxx.ddd.common.exception.ErrorCode;
+import com.xxxx.dddd.domain.event.UserStoryCreatedEvent;
 import com.xxxx.dddd.domain.exception.AppException;
+import com.xxxx.dddd.domain.model.entity.Backlog;
 import com.xxxx.dddd.domain.model.entity.UserStory;
 import com.xxxx.dddd.domain.model.entity.workspace.Workspace;
 import com.xxxx.dddd.domain.model.enums.SprintStatus;
@@ -17,6 +19,7 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,6 +34,8 @@ public class UserStoryAppServiceImpl implements UserStoryAppService {
     WorkspaceRepository workspaceRepository;
     UserStoryMapper userStoryMapper;
 
+    ApplicationEventPublisher publisher;
+
     @Override
     @Transactional
     public UserStoryResponse create(String workspaceId, UserStoryCreateRequest request) {
@@ -38,14 +43,28 @@ public class UserStoryAppServiceImpl implements UserStoryAppService {
         Workspace workspace = workspaceRepository.findById(workspaceId)
                 .orElseThrow(() -> new AppException(ErrorCode.WORKSPACE_NOT_FOUND));
 
+        Backlog backlog = workspace.getBacklog();
+
         UserStory story = userStoryMapper.toEntity(request);
+
         story.setWorkspace(workspace);
+        story.setBacklog(backlog);
         story.setStatus(UserStoryStatus.ToDo);
         story.setSprint(null);
 
-        return userStoryMapper.toResponse(
-                userStoryRepository.save(story)
+        story = userStoryRepository.save(story);
+
+        publisher.publishEvent(
+                new UserStoryCreatedEvent(
+                        story.getId(),
+                        story.getStoryText(),
+                        null,
+                        backlog.getId(),
+                        workspace.getId()
+                )
         );
+
+        return userStoryMapper.toResponse(story);
     }
 
     @Override

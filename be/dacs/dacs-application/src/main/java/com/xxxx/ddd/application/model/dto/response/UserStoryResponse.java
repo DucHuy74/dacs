@@ -18,6 +18,7 @@ public class UserStoryResponse {
 
     String sprintId;    // null = backlog
     String workspaceId;
+    String backlogId;
 
     LocalDateTime createdAt;
     LocalDateTime updatedAt;

@@ -8,6 +8,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Set;
 
 @Entity
@@ -31,6 +32,9 @@ public class Backlog {
     @OneToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "wsp_id", nullable = false, unique = true)
     Workspace workspace;
+
+    @OneToMany(mappedBy = "backlog")
+    private List<UserStory> userStories;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
