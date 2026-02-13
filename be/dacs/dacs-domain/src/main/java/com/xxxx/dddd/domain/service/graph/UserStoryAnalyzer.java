@@ -3,43 +3,136 @@ package com.xxxx.dddd.domain.service.graph;
 import com.xxxx.dddd.domain.model.graph.AnalyzedStory;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
+import java.util.Map;
+
 @Component
 public class UserStoryAnalyzer {
+
+    private static final Map<String, List<String>> ACTOR_KEYWORDS = Map.of(
+            "user", List.of("as a user", "as a customer", "as a client"),
+            "admin", List.of("as an admin", "as a administrator"),
+            "manager", List.of("as a manager", "as a project manager")
+    );
+
+    private static final Map<String, List<String>> ACTION_KEYWORDS = Map.ofEntries(
+
+            Map.entry("LOGIN", List.of("login", "log in", "sign in", "authenticate")),
+            Map.entry("LOGOUT", List.of("logout", "log out", "sign out")),
+
+            Map.entry("REGISTER", List.of("register", "sign up", "create account")),
+            Map.entry("RESET_PASSWORD", List.of("reset password", "forgot password", "recover password")),
+
+            Map.entry("CREATE", List.of("create", "add", "insert", "make", "write", "generate")),
+            Map.entry("UPDATE", List.of("edit", "update", "modify", "change")),
+            Map.entry("DELETE", List.of("delete", "remove", "erase", "destroy")),
+
+            Map.entry("VIEW", List.of("view", "see", "read", "display", "show")),
+            Map.entry("SEARCH", List.of("search", "find", "lookup", "filter", "query")),
+            Map.entry("LIST", List.of("list", "browse", "get all")),
+
+            Map.entry("UPLOAD", List.of("upload", "attach", "import")),
+            Map.entry("DOWNLOAD", List.of("download", "export", "save file")),
+
+            Map.entry("ASSIGN", List.of("assign", "allocate")),
+            Map.entry("SHARE", List.of("share", "send", "distribute")),
+            Map.entry("COMMENT", List.of("comment", "reply", "respond")),
+
+            Map.entry("APPROVE", List.of("approve", "accept", "confirm")),
+            Map.entry("REJECT", List.of("reject", "decline")),
+
+            Map.entry("NOTIFY", List.of("notify", "alert", "send notification")),
+            Map.entry("SUBSCRIBE", List.of("subscribe", "follow")),
+            Map.entry("UNSUBSCRIBE", List.of("unsubscribe", "unfollow")),
+
+            Map.entry("CONFIGURE", List.of("configure", "setup", "set up")),
+            Map.entry("ENABLE", List.of("enable", "activate")),
+            Map.entry("DISABLE", List.of("disable", "deactivate")),
+
+            Map.entry("ARCHIVE", List.of("archive", "store")),
+            Map.entry("RESTORE", List.of("restore", "recover")),
+
+            Map.entry("VALIDATE", List.of("validate", "verify", "check")),
+            Map.entry("SUBMIT", List.of("submit", "send form")),
+
+            Map.entry("SYNC", List.of("sync", "synchronize")),
+            Map.entry("CONNECT", List.of("connect", "link", "integrate"))
+    );
+
+
+    private static final Map<String, List<String>> OBJECT_KEYWORDS = Map.ofEntries(
+
+            Map.entry("system", List.of("system", "application", "platform")),
+
+            Map.entry("account", List.of("account", "user account")),
+            Map.entry("user", List.of("user", "member")),
+            Map.entry("role", List.of("role", "permission", "access control")),
+
+            Map.entry("profile", List.of("profile", "user profile")),
+
+            Map.entry("project", List.of("project", "workspace")),
+            Map.entry("task", List.of("task", "todo", "job", "ticket")),
+            Map.entry("sprint", List.of("sprint", "iteration")),
+            Map.entry("backlog", List.of("backlog")),
+
+            Map.entry("note", List.of("note", "memo", "document")),
+            Map.entry("comment", List.of("comment", "feedback", "review")),
+            Map.entry("attachment", List.of("attachment", "file", "upload")),
+
+            Map.entry("report", List.of("report", "analytics", "dashboard", "statistics")),
+            Map.entry("notification", List.of("notification", "alert", "message")),
+
+            Map.entry("settings", List.of("settings", "configuration", "preferences")),
+            Map.entry("template", List.of("template", "form template")),
+
+            Map.entry("data", List.of("data", "dataset", "record")),
+            Map.entry("log", List.of("log", "history", "activity log")),
+
+            Map.entry("integration", List.of("integration", "external service", "third party")),
+            Map.entry("api", List.of("api", "endpoint", "service")),
+
+            Map.entry("folder", List.of("folder", "directory")),
+            Map.entry("tag", List.of("tag", "label", "category"))
+    );
+
+
+
     public AnalyzedStory analyze(String storyText) {
         String lower = storyText.toLowerCase();
 
-        String actor = detectActor(lower);
-        String action = detectAction(lower);
+        String actor = detectFromDictionary(lower, ACTOR_KEYWORDS, "unknown");
+        String action = detectFromDictionary(lower, ACTION_KEYWORDS, "UNKNOWN");
         String object = detectObject(lower, action);
 
         return new AnalyzedStory(actor, action, object);
     }
 
-    private String detectActor(String text) {
-        if (text.contains("as a user")) return "user";
-        if (text.contains("as an admin")) return "admin";
-        return "unknown";
-    }
+    private String detectFromDictionary(String text,
+                                        Map<String, List<String>> dictionary,
+                                        String defaultValue) {
 
-    private String detectAction(String text) {
-        if (text.contains("login") || text.contains("log in")) return "LOGIN";
-        if (text.contains("register") || text.contains("sign up")) return "REGISTER";
-        if (text.contains("create")) return "CREATE";
-        if (text.contains("edit") || text.contains("update")) return "UPDATE";
-        if (text.contains("delete") || text.contains("remove")) return "DELETE";
-        if (text.contains("search") || text.contains("find")) return "SEARCH";
-        return "UNKNOWN";
+        for (var entry : dictionary.entrySet()) {
+            for (String keyword : entry.getValue()) {
+                if (text.contains(keyword)) {
+                    return entry.getKey();
+                }
+            }
+        }
+
+        return defaultValue;
     }
 
     private String detectObject(String text, String action) {
-        if (text.contains("system")) return "system";
-        if (text.contains("note")) return "note";
-        if (text.contains("task")) return "task";
-        if (text.contains("profile")) return "profile";
 
-        if ("LOGIN".equals(action) || "REGISTER".equals(action)) {
-            return "system";
+        String object = detectFromDictionary(text, OBJECT_KEYWORDS, "unknown");
+
+        // fallback rule cho login/register
+        if ("unknown".equals(object)) {
+            if ("LOGIN".equals(action) || "REGISTER".equals(action)) {
+                return "system";
+            }
         }
-        return "unknown";
+
+        return object;
     }
 }

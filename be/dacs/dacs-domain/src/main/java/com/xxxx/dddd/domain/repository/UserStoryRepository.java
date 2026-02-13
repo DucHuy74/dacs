@@ -11,6 +11,8 @@ public interface UserStoryRepository {
     List<UserStory> findBySprint_Id(String sprintId);
 
     UserStory save(UserStory userStory);
+    List<UserStory> saveAll(List<UserStory> userStories);
+
     Optional<UserStory> findById(String userStoryId);
 
     void delete(String userStoryId);

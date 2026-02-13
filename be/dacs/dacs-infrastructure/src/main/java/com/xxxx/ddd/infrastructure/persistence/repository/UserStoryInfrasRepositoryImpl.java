@@ -31,6 +31,11 @@ public class UserStoryInfrasRepositoryImpl implements UserStoryRepository {
     }
 
     @Override
+    public List<UserStory> saveAll(List<UserStory> userStories){
+        return jpa.saveAll(userStories);
+    }
+
+    @Override
     public Optional<UserStory> findById(String userStoryId){
         return jpa.findById(userStoryId);
     }
