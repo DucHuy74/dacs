@@ -19,50 +19,52 @@ public class GraphQueryResolver {
     private final Neo4jClient neo4jClient;
 
     @QueryMapping
-    public GraphResponse sprintGraph(@Argument String sprintId) {
+    public GraphResponse backlogGraph(@Argument String backlogId) {
 
-        List<GraphNodeDTO> nodes =
-                new ArrayList<>(
-                        neo4jClient.query("""
-                    MATCH (us:UserStory)-[:IN_SPRINT]->(s:Sprint {id:$sprintId})
-                    OPTIONAL MATCH (us)-[*0..2]-(n)
-                    RETURN DISTINCT
-                         coalesce(n.id, n.name) AS id,
-                         labels(n)[0] AS label,
-                         labels(n)[0] AS type
-                """)
-                                .bind(sprintId).to("sprintId")
-                                .fetchAs(GraphNodeDTO.class)
-                                .mappedBy((ts, rec) -> new GraphNodeDTO(
-                                        rec.get("id").asString(),
-                                        rec.get("label").asString(),
-                                        rec.get("type").asString()
-                                ))
-                                .all()
-                );
+        List<GraphNodeDTO> nodes = new ArrayList<>(
+                neo4jClient.query("""
+        MATCH (b:Backlog {id:$backlogId})-[:CONTAINS]->(us:UserStory)
+        OPTIONAL MATCH (us)-[r]-(n)
+        WITH us, n
+        WITH collect(DISTINCT us) AS usNodes,
+             collect(DISTINCT n) AS nNodes
+        WITH usNodes + [x IN nNodes WHERE x IS NOT NULL] AS allNodes
+        UNWIND allNodes AS node
+        RETURN DISTINCT
+            toString(id(node)) AS id,
+            coalesce(node.name, node.id, labels(node)[0]) AS label,
+            labels(node)[0] AS type
+    """)
+                        .bind(backlogId).to("backlogId")
+                        .fetchAs(GraphNodeDTO.class)
+                        .mappedBy((ts, rec) -> new GraphNodeDTO(
+                                rec.get("id").asString(),
+                                rec.get("label").asString(),
+                                rec.get("type").asString()
+                        ))
+                        .all()
+        );
 
 
+        List<GraphEdgeDTO> edges = new ArrayList<>(
+                neo4jClient.query("""
+        MATCH (b:Backlog {id:$backlogId})-[:CONTAINS]->(us:UserStory)
+        MATCH (us)-[r]-(n)
+        RETURN DISTINCT
+            toString(id(us)) AS from,
+            toString(id(n)) AS to,
+            type(r) AS type
+    """)
+                        .bind(backlogId).to("backlogId")
+                        .fetchAs(GraphEdgeDTO.class)
+                        .mappedBy((ts, rec) -> new GraphEdgeDTO(
+                                rec.get("from").asString(),
+                                rec.get("to").asString(),
+                                rec.get("type").asString()
+                        ))
+                        .all()
+        );
 
-
-        List<GraphEdgeDTO> edges =
-                new ArrayList<>(
-                        neo4jClient.query("""
-                    MATCH (us:UserStory)-[:IN_SPRINT]->(s:Sprint {id:$sprintId})
-                    MATCH (us)-[r]-(n)
-                    RETURN
-                          coalesce(us.id, us.name) AS from,
-                          coalesce(n.id, n.name) AS to,
-                          type(r) AS type
-                """)
-                                .bind(sprintId).to("sprintId")
-                                .fetchAs(GraphEdgeDTO.class)
-                                .mappedBy((ts, rec) -> new GraphEdgeDTO(
-                                        rec.get("from").asString(),
-                                        rec.get("to").asString(),
-                                        rec.get("type").asString()
-                                ))
-                                .all()
-                );
 
         return new GraphResponse(nodes, edges);
     }

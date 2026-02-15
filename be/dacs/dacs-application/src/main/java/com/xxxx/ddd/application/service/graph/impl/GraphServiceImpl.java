@@ -22,26 +22,18 @@ public class GraphServiceImpl implements GraphService {
     private final GraphNodeMapper graphNodeMapper;
 
     @Override
-    public GraphResponse getSprintGraph(String sprintId) {
+    public GraphResponse getGraph(String backlogId) {
 
         var rows = neo4jClient.query("""
-    MATCH (us:UserStory)
-    WHERE
-        ($sprintId IS NULL AND (us)-[:IN_BACKLOG]->(:Backlog))
-        OR
-        ($sprintId IS NOT NULL AND (us)-[:IN_SPRINT]->(:Sprint {id:$sprintId}))
-
-    OPTIONAL MATCH (us)-[r]->(n)
-    RETURN us, r, n,
-           startNode(r) AS fromNode,
-           endNode(r)   AS toNode
-""")
-                .bind(sprintId).to("sprintId")
+        MATCH (b:Backlog {id:$backlogId})-[:CONTAINS]->(us:UserStory)
+        OPTIONAL MATCH (us)-[r]->(n)
+        RETURN us, r, n,
+               startNode(r) AS fromNode,
+               endNode(r)   AS toNode
+    """)
+                .bind(backlogId).to("backlogId")
                 .fetch()
                 .all();
-
-
-
 
         Map<String, GraphNodeDTO> nodeMap = new LinkedHashMap<>();
         List<GraphEdgeDTO> edges = new ArrayList<>();
@@ -75,7 +67,6 @@ public class GraphServiceImpl implements GraphService {
                         r.type()
                 ));
             }
-
         }
 
         return new GraphResponse(
@@ -83,4 +74,5 @@ public class GraphServiceImpl implements GraphService {
                 edges
         );
     }
+
 }
