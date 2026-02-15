@@ -15,8 +15,8 @@ public class GraphController {
 
     private final GraphService graphService;
 
-    @GetMapping("/sprint/{id}")
-    public GraphResponse getSprintGraph(@PathVariable String id) {
-        return graphService.getSprintGraph(id);
+    @GetMapping("/backlog/{id}")
+    public GraphResponse getGraph(@PathVariable ("id") String id) {
+        return graphService.getGraph(id);
     }
 }

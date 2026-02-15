@@ -16,5 +16,6 @@ type GraphResponse {
 }
 
 type Query {
-    sprintGraph(sprintId: ID!): GraphResponse
+    backlogGraph(backlogId: ID!): GraphResponse
 }
+
