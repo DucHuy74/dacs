@@ -23,7 +23,6 @@ class InvitationService {
         );
       }).toList();
 
-      // Chờ tất cả request hoàn tất
       final responses = await Future.wait(requests);
 
       bool allSuccess = responses.every((res) => res.statusCode >= 200 && res.statusCode < 300);
