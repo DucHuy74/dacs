@@ -24,16 +24,13 @@ public class GraphQueryResolver {
         List<GraphNodeDTO> nodes = new ArrayList<>(
                 neo4jClient.query("""
         MATCH (b:Backlog {id:$backlogId})-[:CONTAINS]->(us:UserStory)
-        OPTIONAL MATCH (us)-[r]-(n)
-        WITH us, n
-        WITH collect(DISTINCT us) AS usNodes,
-             collect(DISTINCT n) AS nNodes
-        WITH usNodes + [x IN nNodes WHERE x IS NOT NULL] AS allNodes
-        UNWIND allNodes AS node
-        RETURN DISTINCT
-            toString(id(node)) AS id,
-            coalesce(node.name, node.id, labels(node)[0]) AS label,
-            labels(node)[0] AS type
+                                                               OPTIONAL MATCH (us)-[r]-(n)
+                                                               WITH collect(DISTINCT us) + collect(DISTINCT n) AS allNodes
+                                                               UNWIND allNodes AS node
+                                                               RETURN DISTINCT
+                                                                   coalesce(node.id, toString(id(node))) AS id,
+                                                                   coalesce(node.name, node.id) AS label,
+                                                                   labels(node)[0] AS type
     """)
                         .bind(backlogId).to("backlogId")
                         .fetchAs(GraphNodeDTO.class)
@@ -49,11 +46,11 @@ public class GraphQueryResolver {
         List<GraphEdgeDTO> edges = new ArrayList<>(
                 neo4jClient.query("""
         MATCH (b:Backlog {id:$backlogId})-[:CONTAINS]->(us:UserStory)
-        MATCH (us)-[r]-(n)
-        RETURN DISTINCT
-            toString(id(us)) AS from,
-            toString(id(n)) AS to,
-            type(r) AS type
+                                                       MATCH (us)-[r]-(n)
+                                                       RETURN DISTINCT
+                                                           coalesce(us.id, toString(id(us))) AS from,
+                                                           coalesce(n.id, toString(id(n))) AS to,
+                                                           type(r) AS type
     """)
                         .bind(backlogId).to("backlogId")
                         .fetchAs(GraphEdgeDTO.class)
