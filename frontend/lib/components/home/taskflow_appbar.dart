@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../services/auth/auth_service.dart';
 import 'package:frontend/auth/auth_gate.dart';
 import '../../views/home/home_page.dart';
+import 'notification_popup.dart';
 
 class TaskFlowAppBar extends StatelessWidget implements PreferredSizeWidget {
   final bool isMobile;
@@ -15,6 +16,35 @@ class TaskFlowAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Size get preferredSize => const Size.fromHeight(56);
+
+  // --- HÀM MỞ POPUP NOTIFICATION ---
+  void _showNotificationMenu(BuildContext context) {
+    showGeneralDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'Dismiss',
+      barrierColor:
+          Colors.transparent, 
+      transitionDuration: const Duration(milliseconds: 200),
+      pageBuilder: (context, animation, secondaryAnimation) {
+        return Stack(
+          children: [
+            Positioned(
+              top: 56.0,
+              right:
+                  120.0,
+              child: NotificationPopup(
+                onClose: () => Navigator.of(context).pop(),
+              ),
+            ),
+          ],
+        );
+      },
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        return FadeTransition(opacity: animation, child: child);
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -95,10 +125,12 @@ class TaskFlowAppBar extends StatelessWidget implements PreferredSizeWidget {
           ),
         ),
         const SizedBox(width: 12),
+
         IconButton(
           icon: const Icon(Icons.notifications_outlined, color: Colors.white),
-          onPressed: () {},
+          onPressed: () => _showNotificationMenu(context),
         ),
+
         IconButton(
           icon: const Icon(Icons.help_outline, color: Colors.white),
           onPressed: () {},

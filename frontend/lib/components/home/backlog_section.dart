@@ -154,17 +154,15 @@ class _BacklogSectionState extends State<BacklogSection> {
       itemBuilder: (context, index) {
         final story = widget.backlogList[index];
         
-        // --- [MỚI] Bọc Item trong Draggable ---
         return Draggable<String>(
-          data: story.id, // Truyền ID của user story
+          data: story.id, 
           
-          // Giao diện khi đang kéo (Feedback)
           feedback: Material(
             elevation: 4.0,
             borderRadius: BorderRadius.circular(4),
             color: Colors.transparent,
             child: Container(
-              width: MediaQuery.of(context).size.width * 0.85, // Độ rộng cố định khi kéo
+              width: MediaQuery.of(context).size.width * 0.85, 
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
                 color: Colors.white,
@@ -183,20 +181,17 @@ class _BacklogSectionState extends State<BacklogSection> {
             ),
           ),
           
-          // Giao diện để lại vị trí cũ (làm mờ đi)
           childWhenDragging: Opacity(
             opacity: 0.3,
             child: _buildStoryItem(story),
           ),
           
-          // Giao diện bình thường
           child: _buildStoryItem(story),
         );
       },
     );
   }
 
-  // Tách widget item ra để code gọn hơn
   Widget _buildStoryItem(UserStoryModel story) {
     return Container(
       color: Colors.white,

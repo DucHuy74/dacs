@@ -5,7 +5,7 @@ class InviteViewModel extends ChangeNotifier {
   final InvitationService _service = InvitationService();
 
   final List<String> _invitedMembers = [];
-  String _selectedRole = 'MEMBER';
+  String _selectedRole = 'Administrator'; 
   bool _isLoading = false;
   String? _errorMessage;
 
@@ -33,16 +33,26 @@ class InviteViewModel extends ChangeNotifier {
     }
   }
 
+  String _mapRoleToBackend(String uiRole) {
+    switch (uiRole) {
+      case 'Administrator':
+        return 'ADMIN';
+      case 'Viewer':
+        return 'VIEWER';
+      case 'Member':
+      default:
+        return 'MEMBER';
+    }
+  }
+
   Future<bool> submitInvitations(
     String workspaceId, {
     String? currentInputEmail,
   }) async {
-    // LOGIC MỚI: Nếu đang có chữ trong ô nhập, tự động add vào list luôn
     if (currentInputEmail != null && currentInputEmail.trim().isNotEmpty) {
       addMember(currentInputEmail.trim());
     }
 
-    // LOGIC CŨ: Kiểm tra danh sách
     if (_invitedMembers.isEmpty) {
       _errorMessage = "Please add at least one email";
       notifyListeners();
@@ -54,7 +64,8 @@ class InviteViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final success = await _service.sendInvites(workspaceId, _invitedMembers);
+      final backendRole = _mapRoleToBackend(_selectedRole);
+      final success = await _service.sendInvites(workspaceId, _invitedMembers, backendRole);
 
       if (success) {
         _invitedMembers.clear();

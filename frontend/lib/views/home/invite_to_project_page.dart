@@ -12,7 +12,6 @@ class InviteToProjectPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
       create: (_) => InviteViewModel(),
-      // Truyền workspaceId xuống View bên dưới
       child: _InviteView(workspaceId: workspaceId),
     );
   }
@@ -33,7 +32,6 @@ class _InviteViewState extends State<_InviteView> {
   final FocusNode _emailFocusNode = FocusNode();
   bool _isInputFocused = false;
 
-  // Jira Colors
   static const primaryColor = Color(0xFF0052CC);
   static const textDark = Color(0xFF172B4D);
   static const textGrey = Color(0xFF5E6C84);
@@ -69,7 +67,6 @@ class _InviteViewState extends State<_InviteView> {
 
   @override
   Widget build(BuildContext context) {
-    // Lấy viewModel từ context
     final viewModel = context.watch<InviteViewModel>();
 
     return Scaffold(
@@ -256,7 +253,7 @@ class _InviteViewState extends State<_InviteView> {
 
                                 if (success) {
                                   _emailController
-                                      .clear(); // Xóa text sau khi thành công
+                                      .clear(); 
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
                                       content: Text(

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../viewmodels/home/create_project_view_model.dart';
 import 'invite_to_project_page.dart';
-import '../../models/home/workspace_model.dart';
 
 class CreateProjectPage extends StatefulWidget {
   final Map<String, dynamic> selectedTemplate;
@@ -53,19 +52,16 @@ class _CreateProjectPageState extends State<CreateProjectPage> {
     if (!mounted) return;
 
     if (response != null && response.code == 1000) {
-      // Lấy ID từ object đã được parse an toàn
-      // response.result có thể null nên cần check hoặc dùng ?
       final newWorkspaceId = response.result?.id ?? '';
 
       Navigator.of(context).push(
         MaterialPageRoute(
           builder: (context) => InviteToProjectPage(
-            workspaceId: newWorkspaceId, // Truyền ID an toàn
+            workspaceId: newWorkspaceId,
           ),
         ),
       );
     } else {
-      // Lấy message lỗi từ object
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -80,7 +76,6 @@ class _CreateProjectPageState extends State<CreateProjectPage> {
 
   @override
   Widget build(BuildContext context) {
-    // Sử dụng ListenableBuilder để rebuild UI khi ViewModel thay đổi (ví dụ: loading)
     return ListenableBuilder(
       listenable: _viewModel,
       builder: (context, child) {
@@ -94,7 +89,6 @@ class _CreateProjectPageState extends State<CreateProjectPage> {
             elevation: 0,
             leading: IconButton(
               icon: const Icon(Icons.arrow_back, color: Color(0xFF172B4D)),
-              // Chặn back khi đang loading
               onPressed: isLoading ? null : () => Navigator.pop(context),
             ),
             title: const Text(
@@ -293,7 +287,6 @@ class _CreateProjectPageState extends State<CreateProjectPage> {
     );
   }
 
-  // --- PREVIEW SECTION (Giữ nguyên phần UI Preview cũ của bạn ở đây) ---
   Widget _buildPreview() {
     final template = widget.selectedTemplate;
     final projectName = _nameController.text.trim().isEmpty
