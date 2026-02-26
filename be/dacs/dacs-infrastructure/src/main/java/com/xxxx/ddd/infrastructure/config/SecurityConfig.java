@@ -21,7 +21,6 @@ import java.util.List;
 @EnableMethodSecurity
 public class SecurityConfig {
 
-    // Vì bạn có SERVER_CONTEXT_PATH=/api, nên Security chỉ cần hiểu các path tương đối sau đó
     private final String[] PUBLIC_ENDPOINTS = {
             "/register",
             "/error"

@@ -44,12 +44,12 @@ SET us.storyText = $storyText
 MERGE (b)-[:CONTAINS]->(us)
 
 MERGE (actor:Actor {name:$actor})
+MERGE (action:Action {name:$action})
 MERGE (obj:Object {name:$object})
 
-MERGE (us)-[:DESCRIBES]->(actor)
-MERGE (us)-[:DESCRIBES]->(obj)
-
-MERGE (actor)-[:ACTION {name:$action}]->(obj)
+MERGE (us)-[:HAS_ACTOR]->(actor)
+MERGE (us)-[:PERFORMS]->(action)
+MERGE (us)-[:TARGETS]->(obj)
 
 FOREACH (_ IN CASE WHEN $sprintId IS NULL THEN [] ELSE [1] END |
     MERGE (s:Sprint {id:$sprintId})
