@@ -222,7 +222,7 @@ class _LandingPageState extends State<LandingPage> {
 
   Widget _buildHeroSection(BuildContext context) {
     final isMobile = _isMobile(context);
-    final screenWidth = MediaQuery.of(context).size.width;
+    // final screenWidth = MediaQuery.of(context).size.width;
 
     return Container(
       decoration: const BoxDecoration(

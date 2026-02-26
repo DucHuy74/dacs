@@ -137,7 +137,7 @@ class _CreateProjectPageState extends State<CreateProjectPage> {
   }
 
   Widget _buildForm() {
-    final template = widget.selectedTemplate;
+    // final template = widget.selectedTemplate;
     final isLoading = _viewModel.isLoading;
 
     return Column(
