@@ -1,99 +1,35 @@
+// lib/components/home/sprint_graph_screen.dart (Hoặc đường dẫn tuỳ bạn)
 import 'dart:math';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import '../../models/backlog/graph_model.dart';
+import '../../viewmodels/backlog/graph_view_model.dart';
 
 // =============================================================================
-// 1. DATA MODEL
+// THEME CONSTANTS
 // =============================================================================
-enum USStatus { todo, inProgress, done }
+const kBgColor = Color(0xFF0D1117);
+const kSubjectFill = Color(0xFF161B22);
+const kSubjectBorder = Color(0xFF58A6FF);
+const kVerbFill = Color(0xFF1A1040);
+const kVerbBorder = Color(0xFF7C3AED);
+const kVerbGlow = Color(0xFF7C3AED);
+const kObjectFill = Color(0xFF0D1117);
+const kObjectBorder = Color(0xFF22D3EE);
+const kLineColor = Color(0x556E7FBF);
+const kHighlightLine = Color(0xFF818CF8);
+const kTextPrimary = Color(0xFFE6EDF3);
+const kTextSecondary = Color(0xFF8B949E);
 
-class AnalyzedStory {
-  final String id;
-  final String rawText;
-  final String subject;
-  final String verb;
-  final String object;
-  USStatus status;
-
-  AnalyzedStory({
-    required this.id,
-    required this.rawText,
-    required this.subject,
-    required this.verb,
-    required this.object,
-    this.status = USStatus.todo,
-  });
-}
-
-// Dữ liệu mẫu
-final List<AnalyzedStory> mockBacklogData = [
-  // User
-  AnalyzedStory(
-    id: 'us_001',
-    rawText: "User login",
-    subject: "User",
-    verb: "login",
-    object: "system",
-    status: USStatus.done, // Nền xanh lá
-  ),
-  AnalyzedStory(
-    id: 'us_0011',
-    rawText: "User login",
-    subject: "User",
-    verb: "login",
-    object: "system",
-    status: USStatus.done, // Giống trên để test nhiều object cùng tên
-  ),
-  AnalyzedStory(
-    id: 'us_003',
-    rawText: "User view profile",
-    subject: "User",
-    verb: "view",
-    object: "profile",
-    status: USStatus.todo, // Nền xám
-  ),
-
-  // Admin
-  AnalyzedStory(
-    id: 'us_002',
-    rawText: "Admin delete user",
-    subject: "Admin",
-    verb: "delete",
-    object: "User",
-    status: USStatus.inProgress, // Nền trắng, viền quay
-  ),
-  AnalyzedStory(
-    id: 'us_004',
-    rawText: "Admin login",
-    subject: "Admin",
-    verb: "login",
-    object: "system",
-    status: USStatus.todo,
-  ),
-  AnalyzedStory(
-    id: 'us_006',
-    rawText: "Admin login done",
-    subject: "Admin",
-    verb: "login",
-    object: "system",
-    status: USStatus.done,
-  ),
-
-  // Product Owner
-  AnalyzedStory(
-    id: 'us_005',
-    rawText: "PO login",
-    subject: "Product Owner",
-    verb: "login",
-    object: "system",
-    status: USStatus.inProgress,
-  ),
-];
+const kDoneColor = Color(0xFF238636);
+const kInProgressColor = Color(0xFFD29922);
 
 // =============================================================================
-// 2. MÀN HÌNH CHÍNH
+// CLASS WRAPPER: BỌC PROVIDER
 // =============================================================================
-class SprintGraphScreen extends StatefulWidget {
+class SprintGraphScreen extends StatelessWidget {
   final String sprintId;
   final String sprintName;
 
@@ -104,10 +40,36 @@ class SprintGraphScreen extends StatefulWidget {
   }) : super(key: key);
 
   @override
-  _SprintGraphScreenState createState() => _SprintGraphScreenState();
+  Widget build(BuildContext context) {
+    return ChangeNotifierProvider(
+      create: (_) => GraphViewModel(),
+      child: _SprintGraphScreenContent(
+        sprintId: sprintId,
+        sprintName: sprintName,
+      ),
+    );
+  }
 }
 
-class _SprintGraphScreenState extends State<SprintGraphScreen>
+// =============================================================================
+// CLASS VIEW CONTENT
+// =============================================================================
+class _SprintGraphScreenContent extends StatefulWidget {
+  final String sprintId;
+  final String sprintName;
+
+  const _SprintGraphScreenContent({
+    Key? key,
+    required this.sprintId,
+    required this.sprintName,
+  }) : super(key: key);
+
+  @override
+  _SprintGraphScreenContentState createState() =>
+      _SprintGraphScreenContentState();
+}
+
+class _SprintGraphScreenContentState extends State<_SprintGraphScreenContent>
     with SingleTickerProviderStateMixin {
   Map<String, Offset> nodePositions = {};
   Map<String, String> verbToTargetKey = {};
@@ -115,18 +77,22 @@ class _SprintGraphScreenState extends State<SprintGraphScreen>
   Set<String> expandedSubjects = {};
   Set<String> zonedSubjects = {};
   bool _isZoningMode = false;
+  String? _hoveredNodeKey;
 
   late AnimationController _spinController;
 
   @override
   void initState() {
     super.initState();
-    _calculateLayout();
-
     _spinController = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 1), 
+      duration: const Duration(seconds: 2),
     )..repeat();
+
+    // Nạp dữ liệu khi mở màn hình
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadData();
+    });
   }
 
   @override
@@ -135,61 +101,62 @@ class _SprintGraphScreenState extends State<SprintGraphScreen>
     super.dispose();
   }
 
-  List<String> _getUniqueSubjects() {
+  Future<void> _loadData() async {
+    final vm = context.read<GraphViewModel>();
+    await vm.fetchGraphData(widget.sprintId);
+
+    if (mounted && vm.stories.isNotEmpty) {
+      setState(() {
+        expandedSubjects.addAll(_getUniqueSubjects(vm.stories));
+        _calculateLayout(vm.stories);
+      });
+    }
+  }
+
+  List<String> _getUniqueSubjects(List<AnalyzedStory> stories) {
     List<String> subjects = [];
-    for (var s in mockBacklogData) {
+    for (var s in stories) {
       if (!subjects.contains(s.subject)) subjects.add(s.subject);
     }
     return subjects;
   }
 
-  bool _isObjectASubject(String objectName) {
-    return _getUniqueSubjects().contains(objectName);
+  bool _isObjectASubject(String objectName, List<AnalyzedStory> stories) {
+    return _getUniqueSubjects(stories).contains(objectName);
   }
 
-  String _makeObjectKey(String name, USStatus status) {
-    return "obj_${name}_$status";
-  }
+  String _makeObjectKey(String name, USStatus status) =>
+      "obj_${name}_${status.name}";
 
-  void _calculateLayout() {
+  void _calculateLayout(List<AnalyzedStory> stories) {
     nodePositions.clear();
     verbToTargetKey.clear();
 
-    double subjectX = 100;
-    double verbX = 350;
-    double objectX = 650;
+    List<String> subjects = _getUniqueSubjects(stories);
+    const double subjectX = 150;
+    const double verbX = 420;
+    const double objectX = 720;
+    double currentSubjectY = 140;
+    const double subjectSpacing = 160;
+    const double verbSpacing = 80;
 
-    double startY = 100;
-    double subjectSpacing = 120;
-    double verbSpacing = 70;
-
-    List<String> subjects = _getUniqueSubjects();
-
-    double currentSubjectY = startY;
     for (var subName in subjects) {
       nodePositions["sub_$subName"] = Offset(subjectX, currentSubjectY);
       currentSubjectY += subjectSpacing;
     }
 
-    double globalVerbY = startY;
+    double globalVerbY = 140;
     for (var subName in subjects) {
       if (!expandedSubjects.contains(subName)) continue;
-
-      final stories = mockBacklogData
+      final filteredStories = stories
           .where((e) => e.subject == subName)
           .toList();
-
-      for (var story in stories) {
+      for (var story in filteredStories) {
         String verbKey = "verb_${story.id}";
         nodePositions[verbKey] = Offset(verbX, globalVerbY);
-
-        String targetKey;
-        if (_isObjectASubject(story.object)) {
-          targetKey = "sub_${story.object}";
-        } else {
-          targetKey = _makeObjectKey(story.object, story.status);
-        }
-
+        String targetKey = _isObjectASubject(story.object, stories)
+            ? "sub_${story.object}"
+            : _makeObjectKey(story.object, story.status);
         verbToTargetKey[verbKey] = targetKey;
         globalVerbY += verbSpacing;
       }
@@ -197,188 +164,371 @@ class _SprintGraphScreenState extends State<SprintGraphScreen>
 
     Map<String, List<String>> targetToVerbs = {};
     for (var entry in verbToTargetKey.entries) {
-      String verbId = entry.key;
-      String targetKey = entry.value;
-
-      if (targetKey.startsWith("sub_")) continue;
-
-      if (!targetToVerbs.containsKey(targetKey)) {
-        targetToVerbs[targetKey] = [];
-      }
-      targetToVerbs[targetKey]!.add(verbId);
+      if (entry.value.startsWith("sub_")) continue;
+      targetToVerbs.putIfAbsent(entry.value, () => []).add(entry.key);
     }
 
     for (var targetKey in targetToVerbs.keys) {
       List<String> verbIds = targetToVerbs[targetKey]!;
-      double totalY = 0;
-      for (var verbId in verbIds) {
-        if (nodePositions.containsKey(verbId)) {
-          totalY += nodePositions[verbId]!.dy;
-        }
-      }
+      double totalY = verbIds
+          .where((v) => nodePositions.containsKey(v))
+          .map((v) => nodePositions[v]!.dy)
+          .fold(0.0, (a, b) => a + b);
       double avgY = totalY / verbIds.length;
       nodePositions[targetKey] = Offset(objectX, avgY);
     }
   }
 
+  void _avoidCollision(String movedKey, Offset newPos) {
+    const minDist = 70.0;
+    nodePositions[movedKey] = newPos;
+    for (var key in nodePositions.keys) {
+      if (key == movedKey) continue;
+      final other = nodePositions[key]!;
+      final dist = (newPos - other).distance;
+      if (dist < minDist && dist > 0) {
+        final push = (other - newPos) / dist * (minDist - dist) * 0.5;
+        nodePositions[key] = other + push;
+      }
+    }
+  }
+
+  int _countStoriesForObject(String objectName, List<AnalyzedStory> stories) {
+    return stories.where((s) => s.object == objectName).length;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final vm = context.watch<GraphViewModel>();
+
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: kBgColor,
       appBar: AppBar(
-        title: Text(widget.sprintName),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
-        elevation: 0,
-      ),
-      floatingActionButton: _buildFab(),
-      body: InteractiveViewer(
-        constrained: false,
-        boundaryMargin: const EdgeInsets.all(2000),
-        minScale: 0.1,
-        maxScale: 3.0,
-        child: SizedBox(
-          width: 2500,
-          height: 2500,
-          child: Stack(
-            children: [
-              // LỚP 1: DÂY NỐI
-              AnimatedBuilder(
-                animation: _spinController,
-                builder: (context, child) {
-                  return CustomPaint(
-                    size: const Size(2500, 2500),
-                    painter: HorizontalLinesPainter(
-                      nodePositions: nodePositions,
-                      expandedSubjects: expandedSubjects,
-                      mockData: mockBacklogData,
-                      verbToTargetKey: verbToTargetKey,
-                      subjects: _getUniqueSubjects(),
-                    ),
-                  );
-                },
-              ),
-
-              // LỚP 2: VÙNG KHOANH
-              CustomPaint(
-                size: const Size(2500, 2500),
-                painter: ZoningPainter(
-                  nodePositions: nodePositions,
-                  zonedSubjects: zonedSubjects,
-                  mockData: mockBacklogData,
-                  isObjectASubject: _isObjectASubject,
-                  makeObjectKey: _makeObjectKey,
-                ),
-              ),
-
-              // LỚP 3: CÁC NODE
-              ..._buildNodeWidgets(),
-            ],
+        title: Text(
+          widget.sprintName.isNotEmpty ? widget.sprintName : "Backlog Graph",
+          style: const TextStyle(
+            color: kTextPrimary,
+            fontSize: 16,
+            letterSpacing: 1.2,
           ),
         ),
+        backgroundColor: const Color(0xFF161B22),
+        elevation: 0,
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(color: const Color(0xFF30363D), height: 1),
+        ),
+      ),
+      floatingActionButton: _buildFab(vm.stories),
+      body: vm.isLoading
+          ? const Center(
+              child: CircularProgressIndicator(color: kSubjectBorder),
+            )
+          : vm.errorMessage != null
+          ? Center(
+              child: Text(
+                vm.errorMessage!,
+                style: const TextStyle(color: Colors.redAccent, fontSize: 16),
+              ),
+            )
+          : Stack(
+              children: [
+                InteractiveViewer(
+                  constrained: false,
+                  boundaryMargin: const EdgeInsets.all(2000),
+                  minScale: 0.1,
+                  maxScale: 4.0,
+                  child: SizedBox(
+                    width: 2500,
+                    height: 2500,
+                    child: Stack(
+                      children: [
+                        AnimatedBuilder(
+                          animation: _spinController,
+                          builder: (_, __) => CustomPaint(
+                            size: const Size(2500, 2500),
+                            painter: DarkLinesPainter(
+                              nodePositions: nodePositions,
+                              expandedSubjects: expandedSubjects,
+                              mockData: vm.stories,
+                              verbToTargetKey: verbToTargetKey,
+                              subjects: _getUniqueSubjects(vm.stories),
+                              hoveredKey: _hoveredNodeKey,
+                            ),
+                          ),
+                        ),
+                        CustomPaint(
+                          size: const Size(2500, 2500),
+                          painter: ZoningPainter(
+                            nodePositions: nodePositions,
+                            zonedSubjects: zonedSubjects,
+                            mockData: vm.stories,
+                            isObjectASubject: (obj) =>
+                                _isObjectASubject(obj, vm.stories),
+                            makeObjectKey: _makeObjectKey,
+                          ),
+                        ),
+                        ..._buildNodeWidgets(vm.stories),
+                      ],
+                    ),
+                  ),
+                ),
+                Positioned(top: 16, right: 16, child: _buildLegend(vm.stories)),
+              ],
+            ),
+    );
+  }
+
+  Widget _buildLegend(List<AnalyzedStory> stories) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF161B22),
+        border: Border.all(color: const Color(0xFF30363D)),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'RADIAL S-V-O GRAPH',
+            style: TextStyle(
+              color: kTextSecondary,
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1.5,
+            ),
+          ),
+          const SizedBox(height: 10),
+          _legendItem(kSubjectBorder, 'Actor (S)', isCircle: true),
+          _legendItem(kObjectBorder, 'Object (O)', isCircle: false),
+          _legendItem(kVerbBorder, 'Action (V)', isCircle: true),
+          const SizedBox(height: 6),
+          _legendItem(kDoneColor, 'Done', isDot: true),
+          _legendItem(kInProgressColor, 'In Progress', isDot: true),
+          const SizedBox(height: 8),
+          Text(
+            '${_getUniqueSubjects(stories).length} entities / ${stories.length} stories',
+            style: const TextStyle(color: kTextSecondary, fontSize: 10),
+          ),
+        ],
       ),
     );
   }
 
-  List<Widget> _buildNodeWidgets() {
+  Widget _legendItem(
+    Color color,
+    String label, {
+    bool isCircle = false,
+    bool isDot = false,
+  }) {
+    Widget icon;
+    if (isDot) {
+      icon = Container(
+        width: 10,
+        height: 10,
+        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+      );
+    } else if (isCircle) {
+      icon = Container(
+        width: 14,
+        height: 14,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(color: color, width: 2),
+          color: Colors.transparent,
+        ),
+      );
+    } else {
+      icon = Container(
+        width: 18,
+        height: 12,
+        decoration: BoxDecoration(
+          border: Border.all(color: color, width: 1.5),
+          borderRadius: BorderRadius.circular(3),
+          color: Colors.transparent,
+        ),
+      );
+    }
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        children: [
+          icon,
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: const TextStyle(color: kTextSecondary, fontSize: 11),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _buildNodeWidgets(List<AnalyzedStory> stories) {
     List<Widget> widgets = [];
-    List<String> subjects = _getUniqueSubjects();
+    List<String> subjects = _getUniqueSubjects(stories);
 
     for (var subName in subjects) {
       String key = "sub_$subName";
       if (nodePositions.containsKey(key)) {
-        widgets.add(_createDraggableNode(key, subName, NodeType.subject, null));
+        widgets.add(_buildNode(key, subName, NodeType.subject, null, stories));
       }
     }
 
     for (var subName in expandedSubjects) {
-      final stories = mockBacklogData
-          .where((e) => e.subject == subName)
-          .toList();
-      for (var s in stories) {
+      final subStories = stories.where((e) => e.subject == subName).toList();
+      for (var s in subStories) {
         String verbKey = "verb_${s.id}";
         if (nodePositions.containsKey(verbKey)) {
-          widgets.add(
-            _createDraggableNode(verbKey, s.verb, NodeType.verb, null),
-          );
+          widgets.add(_buildNode(verbKey, s.verb, NodeType.verb, s, stories));
         }
       }
     }
 
     Set<String> renderedObjectKeys = {};
-    for (var story in mockBacklogData) {
-      if (_isObjectASubject(story.object)) continue;
-
+    for (var story in stories) {
+      if (_isObjectASubject(story.object, stories)) continue;
       String objKey = _makeObjectKey(story.object, story.status);
-
       if (!renderedObjectKeys.contains(objKey) &&
           nodePositions.containsKey(objKey)) {
         renderedObjectKeys.add(objKey);
         widgets.add(
-          _createDraggableNode(objKey, story.object, NodeType.object, story),
+          _buildNode(objKey, story.object, NodeType.object, story, stories),
         );
       }
     }
+
     return widgets;
   }
 
-  Widget _createDraggableNode(
+  Widget _buildNode(
     String key,
     String text,
     NodeType type,
     AnalyzedStory? story,
+    List<AnalyzedStory> stories,
   ) {
     Offset pos = nodePositions[key]!;
-    double width = type == NodeType.subject
-        ? 100
-        : (type == NodeType.object ? 80 : 90);
-    double height = type == NodeType.subject
-        ? 100
-        : (type == NodeType.object ? 80 : 45);
-    double left = pos.dx - (width / 2);
-    double top = pos.dy - (height / 2);
+    double width = type == NodeType.verb ? 64 : 110;
+    double height = type == NodeType.verb
+        ? 64
+        : (type == NodeType.subject ? 60 : 44);
+
+    bool isHovered = _hoveredNodeKey == key;
+    int storyCount = type == NodeType.object
+        ? _countStoriesForObject(text, stories)
+        : 0;
 
     return Positioned(
-      left: left,
-      top: top,
-      child: GestureDetector(
-        onPanUpdate: (details) {
-          if (!_isZoningMode) {
-            setState(() {
-              nodePositions[key] = pos + details.delta;
-            });
-          }
-        },
-        onTap: () {
-          if (_isZoningMode && type == NodeType.subject) {
-            setState(() {
-              if (zonedSubjects.contains(text)) {
-                zonedSubjects.remove(text);
-              } else {
-                zonedSubjects.add(text);
-              }
-            });
-          } else if (type == NodeType.subject && !_isZoningMode) {
-            setState(() {
-              if (expandedSubjects.contains(text)) {
-                expandedSubjects.remove(text);
-              } else {
-                expandedSubjects.add(text);
-              }
-              _calculateLayout();
-            });
-          } else if (type == NodeType.object && story != null) {
-            _showActionMenu(context, story);
-          }
-        },
-        child: MouseRegion(
-          cursor: _isZoningMode && type == NodeType.subject
-              ? SystemMouseCursors.cell
-              : SystemMouseCursors.move,
-          child: _buildNodeUI(text, type, story, width, height),
-        ),
+      left: pos.dx - width / 2,
+      top: pos.dy - height / 2 - (type == NodeType.verb ? 12 : 0),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          MouseRegion(
+            cursor: SystemMouseCursors.move,
+            onEnter: (_) => setState(() => _hoveredNodeKey = key),
+            onExit: (_) => setState(() => _hoveredNodeKey = null),
+            child: GestureDetector(
+              onPanUpdate: (d) {
+                if (!_isZoningMode)
+                  setState(() => _avoidCollision(key, pos + d.delta));
+              },
+              onTap: () => _handleTap(key, text, type, story, stories),
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  _buildNodeUI(text, type, story, width, height, isHovered),
+                  if (isHovered && type == NodeType.object)
+                    Positioned(
+                      left: width + 8,
+                      top: 0,
+                      child: _buildTooltip(text, storyCount),
+                    ),
+                ],
+              ),
+            ),
+          ),
+          if (type == NodeType.verb)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                'expand',
+                style: TextStyle(
+                  color: kTextSecondary.withOpacity(0.7),
+                  fontSize: 9,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
+        ],
       ),
     );
+  }
+
+  Widget _buildTooltip(String objectName, int count) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1C2128),
+        border: Border.all(color: const Color(0xFF30363D)),
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.5),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            objectName,
+            style: const TextStyle(
+              color: kTextPrimary,
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Object entity -- reused in $count ${count == 1 ? 'story' : 'stories'}',
+            style: const TextStyle(color: kTextSecondary, fontSize: 12),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _handleTap(
+    String key,
+    String text,
+    NodeType type,
+    AnalyzedStory? story,
+    List<AnalyzedStory> stories,
+  ) {
+    if (_isZoningMode && type == NodeType.subject) {
+      setState(() {
+        if (zonedSubjects.contains(text))
+          zonedSubjects.remove(text);
+        else
+          zonedSubjects.add(text);
+      });
+    } else if (type == NodeType.subject && !_isZoningMode) {
+      setState(() {
+        if (expandedSubjects.contains(text))
+          expandedSubjects.remove(text);
+        else
+          expandedSubjects.add(text);
+        _calculateLayout(stories);
+      });
+    } else if (type == NodeType.object && story != null) {
+      _showActionMenu(context, story);
+    }
   }
 
   Widget _buildNodeUI(
@@ -387,136 +537,80 @@ class _SprintGraphScreenState extends State<SprintGraphScreen>
     AnalyzedStory? story,
     double w,
     double h,
+    bool isHovered,
   ) {
-    // 1. NODE VERB
-    if (type == NodeType.verb) {
-      return Container(
-        width: w,
-        height: h,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border.all(color: Colors.black, width: 2.0),
-          borderRadius: BorderRadius.circular(4),
-        ),
-        child: Text(
-          text,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-        ),
-      );
+    switch (type) {
+      case NodeType.subject:
+        return _buildSubjectNode(text, w, h, isHovered);
+      case NodeType.verb:
+        return _buildVerbNode(text, w, h, isHovered);
+      case NodeType.object:
+        return _buildObjectNode(text, story, w, h, isHovered);
     }
+  }
 
-    // 2. NODE SUBJECT
-    if (type == NodeType.subject) {
-      bool isExpanded = expandedSubjects.contains(text);
-      return Container(
-        width: w,
-        height: h,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: const Color(0xFF0052CC),
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black26,
-              blurRadius: 6,
-              offset: Offset(0, 3),
-            ),
-          ],
+  Widget _buildSubjectNode(String text, double w, double h, bool isHovered) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      width: w,
+      height: h,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: kSubjectFill,
+        borderRadius: BorderRadius.circular(h / 2),
+        border: Border.all(
+          color: isHovered ? kSubjectBorder : kSubjectBorder.withOpacity(0.7),
+          width: isHovered ? 2.5 : 2.0,
         ),
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            Text(
-              text,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
-              ),
-            ),
-            if (isExpanded)
-              Positioned(
-                bottom: 5,
-                child: Container(
-                  width: 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-              ),
-          ],
+        boxShadow: [
+          BoxShadow(
+            color: kSubjectBorder.withOpacity(isHovered ? 0.4 : 0.15),
+            blurRadius: isHovered ? 20 : 12,
+          ),
+        ],
+      ),
+      child: Text(
+        text,
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          color: kTextPrimary,
+          fontWeight: FontWeight.bold,
+          fontSize: text.length > 8 ? 12 : 14,
         ),
-      );
-    }
+      ),
+    );
+  }
 
-    // 3. NODE OBJECT (XỬ LÝ MÀU NỀN & VIỀN THEO STATUS)
-
-    // Xác định màu nền và màu chữ
-    Color bgColor = Colors.white;
-    Color textColor = Colors.black;
-    USStatus status = story?.status ?? USStatus.todo;
-
-    if (status == USStatus.done) {
-      bgColor = Colors.green; // Nền xanh lá
-      textColor = Colors.white; // Chữ trắng
-    } else if (status == USStatus.todo) {
-      bgColor = Colors.grey; // Nền xám
-      textColor = Colors.white; // Chữ trắng
-    } else {
-      // InProgress: Nền trắng, Chữ đen
-      bgColor = Colors.white;
-      textColor = Colors.black;
-    }
-
+  Widget _buildVerbNode(String text, double w, double h, bool isHovered) {
     return AnimatedBuilder(
       animation: _spinController,
       builder: (context, child) {
         return CustomPaint(
-          // Chỉ vẽ viền spinning nếu là InProgress
-          painter: _StatusBorderPainter(status, _spinController.value),
+          painter: _GlowCirclePainter(
+            color: kVerbBorder,
+            glowRadius: isHovered ? 0.6 : 0.4,
+            animValue: _spinController.value,
+          ),
           child: Container(
             width: w,
             height: h,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: bgColor,
+              color: kVerbFill,
               shape: BoxShape.circle,
-              // Thêm bóng nhẹ cho đẹp
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black12,
-                  blurRadius: 2,
-                  offset: Offset(0, 2),
-                ),
-              ],
+              border: Border.all(
+                color: kVerbBorder.withOpacity(isHovered ? 1.0 : 0.8),
+                width: 1.5,
+              ),
             ),
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(4.0),
-                  child: Text(
-                    text,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: textColor,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                // Icon tick cho trạng thái Done
-                if (status == USStatus.done)
-                  const Positioned(
-                    top: 2,
-                    right: 2,
-                    child: Icon(Icons.check, color: Colors.white, size: 16),
-                  ),
-              ],
+            child: Text(
+              text,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: kTextPrimary,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         );
@@ -524,132 +618,240 @@ class _SprintGraphScreenState extends State<SprintGraphScreen>
     );
   }
 
-  Widget _buildFab() {
+  Widget _buildObjectNode(
+    String text,
+    AnalyzedStory? story,
+    double w,
+    double h,
+    bool isHovered,
+  ) {
+    Color borderColor = story?.status == USStatus.done
+        ? kDoneColor
+        : (story?.status == USStatus.inProgress
+              ? kInProgressColor
+              : kObjectBorder);
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      width: w,
+      height: h,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: kObjectFill,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: isHovered ? borderColor : borderColor.withOpacity(0.7),
+          width: isHovered ? 2.0 : 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: borderColor.withOpacity(isHovered ? 0.35 : 0.1),
+            blurRadius: isHovered ? 16 : 6,
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        child: Text(
+          text,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            color: kTextPrimary,
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFab(List<AnalyzedStory> stories) {
     return Column(
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
-        FloatingActionButton(
+        _fabButton(
           heroTag: "z",
-          backgroundColor: _isZoningMode ? Colors.green : Colors.white,
+          icon: Icons.ads_click,
+          active: _isZoningMode,
           onPressed: () => setState(() => _isZoningMode = !_isZoningMode),
-          child: Icon(
-            Icons.ads_click,
-            color: _isZoningMode ? Colors.white : Colors.black,
-          ),
         ),
         const SizedBox(height: 10),
-        FloatingActionButton(
+        _fabButton(
           heroTag: "expand",
-          backgroundColor: Colors.white,
+          icon: expandedSubjects.isEmpty
+              ? Icons.unfold_more
+              : Icons.unfold_less,
           onPressed: () => setState(() {
-            if (expandedSubjects.length == _getUniqueSubjects().length) {
+            if (expandedSubjects.length == _getUniqueSubjects(stories).length)
               expandedSubjects.clear();
-            } else {
-              expandedSubjects.addAll(_getUniqueSubjects());
-            }
-            _calculateLayout();
+            else
+              expandedSubjects.addAll(_getUniqueSubjects(stories));
+            _calculateLayout(stories);
           }),
-          child: Icon(
-            expandedSubjects.isEmpty ? Icons.unfold_more : Icons.unfold_less,
-            color: Colors.black,
-          ),
         ),
         const SizedBox(height: 10),
-        FloatingActionButton(
-          heroTag: "r",
-          backgroundColor: Colors.white,
-          onPressed: () => setState(() {
-            _calculateLayout();
-          }),
-          child: const Icon(Icons.refresh, color: Colors.black),
-        ),
+        _fabButton(heroTag: "r", icon: Icons.refresh, onPressed: _loadData),
       ],
+    );
+  }
+
+  Widget _fabButton({
+    required String heroTag,
+    required IconData icon,
+    required VoidCallback onPressed,
+    bool active = false,
+  }) {
+    return FloatingActionButton(
+      heroTag: heroTag,
+      mini: true,
+      backgroundColor: active ? kVerbBorder : const Color(0xFF161B22),
+      elevation: 4,
+      onPressed: onPressed,
+      child: Icon(icon, color: active ? Colors.white : kTextPrimary, size: 20),
     );
   }
 
   void _showActionMenu(BuildContext context, AnalyzedStory story) {
     showModalBottomSheet(
       context: context,
+      backgroundColor: const Color(0xFF161B22),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        side: BorderSide(color: Color(0xFF30363D)),
+      ),
       builder: (c) => Container(
-        height: 150,
-        padding: EdgeInsets.all(20),
+        height: 180,
+        padding: const EdgeInsets.all(24),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              "${story.rawText} (${story.status.toString().split('.').last})",
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              story.rawText,
+              style: const TextStyle(
+                color: kTextPrimary,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
             ),
-            SizedBox(height: 10),
-            Text("Object ID: obj_${story.object}_${story.status}"),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                _statusChip(story.status),
+                const SizedBox(width: 12),
+                Text(
+                  '${story.subject} → ${story.verb} → ${story.object}',
+                  style: const TextStyle(color: kTextSecondary, fontSize: 13),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'ID: ${story.id}',
+              style: const TextStyle(color: kTextSecondary, fontSize: 12),
+            ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _statusChip(USStatus status) {
+    Color color = status == USStatus.done
+        ? kDoneColor
+        : (status == USStatus.inProgress ? kInProgressColor : kTextSecondary);
+    String label = status == USStatus.done
+        ? 'Done'
+        : (status == USStatus.inProgress ? 'In Progress' : 'Todo');
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.6)),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
         ),
       ),
     );
   }
 }
 
-enum NodeType { subject, verb, object }
-
 // =============================================================================
-// 3. PAINTER VẼ DÂY NỐI
+// GRAPH PAINTERS (DarkLinesPainter, ZoningPainter, _GlowCirclePainter)
 // =============================================================================
-class HorizontalLinesPainter extends CustomPainter {
+class DarkLinesPainter extends CustomPainter {
   final Map<String, Offset> nodePositions;
   final Set<String> expandedSubjects;
   final List<AnalyzedStory> mockData;
   final Map<String, String> verbToTargetKey;
   final List<String> subjects;
+  final String? hoveredKey;
 
-  HorizontalLinesPainter({
+  DarkLinesPainter({
     required this.nodePositions,
     required this.expandedSubjects,
     required this.mockData,
     required this.verbToTargetKey,
     required this.subjects,
+    this.hoveredKey,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.black
-      ..strokeWidth = 2.0
-      ..style = PaintingStyle.stroke;
-
     for (var subName in subjects) {
       if (!expandedSubjects.contains(subName)) continue;
-
       String subKey = "sub_$subName";
       if (!nodePositions.containsKey(subKey)) continue;
 
       Offset subCenter = nodePositions[subKey]!;
-
       final stories = mockData.where((e) => e.subject == subName).toList();
+
       for (var s in stories) {
         String verbKey = "verb_${s.id}";
+        if (!nodePositions.containsKey(verbKey)) continue;
 
-        if (nodePositions.containsKey(verbKey)) {
-          Offset verbCenter = nodePositions[verbKey]!;
-          canvas.drawLine(subCenter, verbCenter, paint);
+        Offset verbCenter = nodePositions[verbKey]!;
+        bool isHighlighted =
+            hoveredKey == verbKey ||
+            hoveredKey == subKey ||
+            (verbToTargetKey[verbKey] != null &&
+                hoveredKey == verbToTargetKey[verbKey]);
 
-          if (verbToTargetKey.containsKey(verbKey)) {
-            String targetKey = verbToTargetKey[verbKey]!;
-            if (nodePositions.containsKey(targetKey)) {
-              Offset objCenter = nodePositions[targetKey]!;
-              canvas.drawLine(verbCenter, objCenter, paint);
-            }
+        final paint = Paint()
+          ..color = isHighlighted ? kHighlightLine.withOpacity(0.9) : kLineColor
+          ..strokeWidth = isHighlighted ? 2.0 : 1.0
+          ..style = PaintingStyle.stroke;
+
+        _drawCurvedLine(canvas, subCenter, verbCenter, paint);
+
+        if (verbToTargetKey.containsKey(verbKey)) {
+          String targetKey = verbToTargetKey[verbKey]!;
+          if (nodePositions.containsKey(targetKey)) {
+            Offset objCenter = nodePositions[targetKey]!;
+            _drawCurvedLine(canvas, verbCenter, objCenter, paint);
           }
         }
       }
     }
   }
 
+  void _drawCurvedLine(Canvas canvas, Offset from, Offset to, Paint paint) {
+    final mid = Offset((from.dx + to.dx) / 2, (from.dy + to.dy) / 2);
+    final path = Path()
+      ..moveTo(from.dx, from.dy)
+      ..quadraticBezierTo(mid.dx, from.dy, to.dx, to.dy);
+    canvas.drawPath(path, paint);
+  }
+
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+  bool shouldRepaint(covariant DarkLinesPainter old) =>
+      old.hoveredKey != hoveredKey || true;
 }
 
-// =============================================================================
-// 4. PAINTER PHỤ (ZONING)
-// =============================================================================
 class ZoningPainter extends CustomPainter {
   final Map<String, Offset> nodePositions;
   final Set<String> zonedSubjects;
@@ -668,9 +870,8 @@ class ZoningPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     if (zonedSubjects.isEmpty) return;
-
     final paint = Paint()
-      ..color = Colors.green
+      ..color = kVerbBorder.withOpacity(0.8)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2.0;
 
@@ -680,7 +881,7 @@ class ZoningPainter extends CustomPainter {
         if (!isObjectASubject(s.object)) {
           String objKey = makeObjectKey(s.object, s.status);
           if (nodePositions.containsKey(objKey)) {
-            _drawDashedCircle(canvas, nodePositions[objKey]!, 50, paint);
+            _drawDashedCircle(canvas, nodePositions[objKey]!, 54, paint);
           }
         }
       }
@@ -706,59 +907,32 @@ class ZoningPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+  bool shouldRepaint(covariant CustomPainter old) => true;
 }
 
-// =============================================================================
-// 5. STATUS BORDER PAINTER (SPINNING EFFECT)
-// =============================================================================
-class _StatusBorderPainter extends CustomPainter {
-  final USStatus status;
-  final double animationValue;
+class _GlowCirclePainter extends CustomPainter {
+  final Color color;
+  final double glowRadius;
+  final double animValue;
 
-  _StatusBorderPainter(this.status, this.animationValue);
+  _GlowCirclePainter({
+    required this.color,
+    required this.glowRadius,
+    required this.animValue,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
-    // Bán kính border: lớn hơn một chút so với container để bao quanh
-    final radius = (size.width / 2) + 2;
-
-    // CHỈ VẼ HIỆU ỨNG NẾU LÀ IN_PROGRESS
-    if (status == USStatus.inProgress) {
-      // 1. Vẽ đường tròn nền (Track) màu xám nhạt
-      Paint trackPaint = Paint()
-        ..color = Colors.grey.shade300
-        ..strokeWidth = 3.0
-        ..style = PaintingStyle.stroke;
-      canvas.drawCircle(center, radius, trackPaint);
-
-      // 2. Vẽ cung xoay (Indicator) màu đen
-      Paint indicatorPaint = Paint()
-        ..color = Colors
-            .black // Màu đen giống ảnh
-        ..strokeWidth = 3.0
-        ..style = PaintingStyle.stroke
-        ..strokeCap = StrokeCap.round;
-
-      // Logic xoay:
-      double startAngle = animationValue * 2 * pi; // Xoay vòng tròn
-      double sweepAngle = pi / 2; // Độ dài cung (90 độ)
-
-      canvas.drawArc(
-        Rect.fromCircle(center: center, radius: radius),
-        startAngle,
-        sweepAngle,
-        false,
-        indicatorPaint,
-      );
-    }
-    // Todo & Done không cần vẽ border ở đây vì đã có màu nền xử lý
+    final radius = size.width / 2;
+    double pulse = 0.5 + 0.5 * sin(animValue * 2 * pi);
+    final glowPaint = Paint()
+      ..color = color.withOpacity(0.15 + 0.1 * pulse)
+      ..maskFilter = MaskFilter.blur(BlurStyle.normal, 8 + 4 * pulse);
+    canvas.drawCircle(center, radius + 4, glowPaint);
   }
 
   @override
-  bool shouldRepaint(covariant _StatusBorderPainter oldDelegate) {
-    return oldDelegate.animationValue != animationValue ||
-        oldDelegate.status != status;
-  }
+  bool shouldRepaint(covariant _GlowCirclePainter old) =>
+      old.animValue != animValue || old.glowRadius != glowRadius;
 }
