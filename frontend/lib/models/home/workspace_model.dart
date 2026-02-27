@@ -1,9 +1,7 @@
 // lib/models/home/workspace_model.dart
 
 enum WorkspaceType { TEAM_MANAGED, COMPANY_MANAGED }
-
 enum WorkspaceAccess { OPEN, PRIVATE, LIMITED }
-
 enum WorkspaceRole { ADMIN, MEMBER, VIEWER }
 
 class Backlog {
@@ -13,7 +11,10 @@ class Backlog {
   Backlog({required this.id, required this.name});
 
   factory Backlog.fromJson(Map<String, dynamic> json) {
-    return Backlog(id: json['id'] ?? '', name: json['name'] ?? '');
+    return Backlog(
+      id: json['id']?.toString() ?? '', 
+      name: json['name']?.toString() ?? ''
+    );
   }
 }
 
@@ -41,38 +42,37 @@ class WorkspaceModel {
   });
 
   factory WorkspaceModel.fromJson(Map<String, dynamic> json) {
-    return WorkspaceModel(
-      id: json['id'] ?? '',
-      name: json['name'] ?? '',
-
-      type: WorkspaceType.values.firstWhere(
-        (e) => e.name == json['type'],
-        orElse: () => WorkspaceType.TEAM_MANAGED,
-      ),
-      access: WorkspaceAccess.values.firstWhere(
-        (e) => e.name == json['access'],
-        orElse: () => WorkspaceAccess.OPEN,
-      ),
-
-      backlog: json['backlog'] != null
-          ? Backlog.fromJson(json['backlog'])
-          : null,
-
-      roles:
-          (json['roles'] as List<dynamic>?)
-              ?.map(
-                (e) => WorkspaceRole.values.firstWhere(
-                  (role) => role.name == e,
-                  orElse: () => WorkspaceRole.MEMBER,
-                ),
-              )
-              .toList() ??
-          [],
-
-      createdAt: json['createdAt'] ?? '',
-      updatedAt: json['updatedAt'] ?? '',
-      ownerId: json['ownerId'],
-    );
+    try {
+      return WorkspaceModel(
+        id: json['id']?.toString() ?? '',
+        name: json['name']?.toString() ?? '',
+        type: WorkspaceType.values.firstWhere(
+          (e) => e.name == json['type']?.toString(),
+          orElse: () => WorkspaceType.TEAM_MANAGED,
+        ),
+        access: WorkspaceAccess.values.firstWhere(
+          (e) => e.name == json['access']?.toString(),
+          orElse: () => WorkspaceAccess.OPEN,
+        ),
+        backlog: json['backlog'] != null 
+            ? Backlog.fromJson(Map<String, dynamic>.from(json['backlog'])) 
+            : null,
+        roles: (json['roles'] as List<dynamic>?)
+                ?.map((e) => WorkspaceRole.values.firstWhere(
+                      (role) => role.name == e?.toString(),
+                      orElse: () => WorkspaceRole.MEMBER,
+                    ))
+                .toList() ??
+            [],
+        createdAt: json['createdAt']?.toString() ?? '',
+        updatedAt: json['updatedAt']?.toString() ?? '',
+        ownerId: json['ownerId']?.toString(),
+      );
+    } catch (e) {
+      print('=== LỖI PARSE JSON WORKSPACE MODEL ===');
+      print(e);
+      rethrow; 
+    }
   }
 }
 
@@ -85,10 +85,10 @@ class WorkspaceResponse {
 
   factory WorkspaceResponse.fromJson(Map<String, dynamic> json) {
     return WorkspaceResponse(
-      code: json['code'] ?? 0,
-      message: json['message'] ?? '',
-      result: json['result'] != null
-          ? WorkspaceModel.fromJson(json['result'])
+      code: int.tryParse(json['code']?.toString() ?? '0') ?? 0,
+      message: json['message']?.toString() ?? '',
+      result: json['result'] != null && json['result'] is Map
+          ? WorkspaceModel.fromJson(Map<String, dynamic>.from(json['result']))
           : null,
     );
   }

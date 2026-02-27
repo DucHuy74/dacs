@@ -2,7 +2,6 @@ package com.xxxx.ddd.controller.http;
 
 import com.xxxx.ddd.application.model.dto.response.NotificationResponse;
 import com.xxxx.ddd.application.service.notification.NotificationAppService;
-import com.xxxx.ddd.application.service.notification.impl.NotificationAppServiceImpl;
 import com.xxxx.ddd.common.dto.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,14 +30,13 @@ public class NotificationController {
 
     @GetMapping("/unread")
     public ApiResponse<List<NotificationResponse>> getUnread() {
-
         return ApiResponse.<List<NotificationResponse>>builder()
                 .result(notificationService.getUnread(getCurrentUserId()))
                 .build();
     }
 
     @PatchMapping("/{id}/read")
-    public ApiResponse<Void> markAsRead(@PathVariable String id) {
+    public ApiResponse<Void> markAsRead(@PathVariable("id") String id) {
 
         notificationService.markAsRead(id, getCurrentUserId());
 

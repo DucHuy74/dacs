@@ -5,6 +5,39 @@ import '../../models/home/workspace_model.dart';
 import '../auth/auth_service.dart';
 
 class WorkspaceService {
+  static const String url = 'http://localhost:8080/api/workspace';
+
+  // --- Lấy workspace ---
+  Future<List<WorkspaceModel>> getWorkspaces() async {
+    try {
+      final token = await AuthService.instance.getValidAccessToken();
+      if (token == null) return [];
+
+      final response = await http.get(
+        Uri.parse(url),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+          'x-api-key': dotenv.env['API_KEY'] ?? '',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        // Kiểm tra code 1000 theo format JSON bạn cung cấp trước đó
+        if (data['code'] == 1000) {
+          final List<dynamic> results = data['result'];
+          return results.map((e) => WorkspaceModel.fromJson(e)).toList();
+        }
+      }
+      return [];
+    } catch (e) {
+      print('Error loading workspaces: $e');
+      return [];
+    }
+  }
+
+  // --- Tạo workspace ---
   static const String baseUrl = 'http://localhost:8080/api/workspace';
 
   Future<WorkspaceResponse?> createWorkspace({

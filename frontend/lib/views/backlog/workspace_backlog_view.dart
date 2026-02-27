@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../models/home/workspace_model.dart';
-import '../../models/backlog/sprint_model.dart';
 import '../../viewmodels/backlog/backlog_view_model.dart';
 import '../../services/backlog/sprint_service.dart';
 import '../../components/home/workspace_header.dart';
-import '../../components/home/backlog_common.dart';
 import '../../components/home/sprint_section.dart';
 import '../../components/home/backlog_section.dart';
 import '../../components/home/sprint_graph_screen.dart';
@@ -27,6 +25,8 @@ class _WorkspaceBacklogViewState extends State<WorkspaceBacklogView> {
   final FocusNode _sprintInputFocusNode = FocusNode();
 
   String _activeTab = 'Backlog';
+
+  bool _isGraphHovered = false;
 
   @override
   void initState() {
@@ -101,30 +101,53 @@ class _WorkspaceBacklogViewState extends State<WorkspaceBacklogView> {
     }
   }
 
-  // Widget hiển thị đồ thị (Dùng cho cả tab Graph và Calendar với Mock Data)
-  Widget _buildGraphView() {
-    return const SprintGraphScreen(
-      sprintId: "mock_id",
-      sprintName: "User Story Relationship (Mock)",
-    );
-  }
-
-  // Widget hiển thị danh sách Backlog thông thường
   Widget _buildBacklogTab() {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+      physics: _isGraphHovered
+          ? const NeverScrollableScrollPhysics()
+          : const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.only(left: 24, right: 24, bottom: 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const BacklogSearchBar(),
-          const SizedBox(height: 24),
-          SprintSection(
-            controller: _sprintInputController,
-            onCreateStory: _handleCreateStory,
-            sprints: _viewModel.sprintList,
-            onMoveStoryToSprint: _handleMoveStoryToSprint,
+          const SizedBox(
+            height: 24,
           ),
+          MouseRegion(
+            onEnter: (_) => setState(() => _isGraphHovered = true),
+            onExit: (_) => setState(() => _isGraphHovered = false),
+            child: Container(
+              height: 500, // Chiều cao đồ thị
+              clipBehavior: Clip.hardEdge,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.06),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: SprintGraphScreen(
+                sprintId: widget.workspace.backlog?.id ?? "",
+                sprintName: widget.workspace.backlog?.name ?? "",
+              ),
+            ),
+          ),
+
           const SizedBox(height: 24),
+
+          if (_viewModel.sprintList.isNotEmpty) ...[
+            SprintSection(
+              controller: _sprintInputController,
+              onCreateStory: _handleCreateStory,
+              sprints: _viewModel.sprintList,
+              onMoveStoryToSprint: _handleMoveStoryToSprint,
+            ),
+            const SizedBox(height: 24),
+          ],
+
           BacklogSection(
             onCreateStory: _handleCreateStory,
             backlogList: _viewModel.backlogList,
@@ -136,12 +159,8 @@ class _WorkspaceBacklogViewState extends State<WorkspaceBacklogView> {
     );
   }
 
-  // Hàm điều hướng hiển thị nội dung theo Tab
   Widget _buildMainContent() {
     switch (_activeTab) {
-      case 'Graph':
-      case 'Calendar':
-        return _buildGraphView();
       case 'Backlog':
         return _buildBacklogTab();
       default:
@@ -170,7 +189,6 @@ class _WorkspaceBacklogViewState extends State<WorkspaceBacklogView> {
                     setState(() {
                       _activeTab = tab;
                     });
-                    // Refresh dữ liệu nếu chuyển về tab Backlog
                     if (tab == 'Backlog') {
                       _viewModel.fetchBacklog(widget.workspace.id);
                     }
@@ -184,7 +202,6 @@ class _WorkspaceBacklogViewState extends State<WorkspaceBacklogView> {
                 ),
               ],
             ),
-            // Hiển thị vòng xoay loading khi ViewModel đang xử lý
             if (_viewModel.isLoading)
               Container(
                 color: Colors.black.withOpacity(0.3),

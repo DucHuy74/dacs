@@ -8,7 +8,6 @@ class CreateProjectViewModel extends ChangeNotifier {
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
-  // Helpers chuyển đổi String UI -> Enum Model
   WorkspaceType _getWorkspaceType(String uiValue) {
     if (uiValue == 'Team-managed') return WorkspaceType.TEAM_MANAGED;
     return WorkspaceType.COMPANY_MANAGED;

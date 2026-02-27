@@ -6,8 +6,8 @@ InputDecoration commonInputDecoration(
   String label, {
   IconData? suffixIcon,
   bool isPassword = false,
-  bool isObscure = true,      // Tham số mới: trạng thái ẩn/hiện mật khẩu
-  VoidCallback? onToggle,     // Tham số mới: hàm callback khi bấm nút mắt
+  bool isObscure = true,     
+  VoidCallback? onToggle,     t
 }) {
   return InputDecoration(
     labelText: label,
@@ -15,7 +15,6 @@ InputDecoration commonInputDecoration(
     filled: true,
     fillColor: const Color(0xFFFAFBFC),
     
-    // Logic xử lý icon đuôi (Mắt ẩn hiện hoặc icon thường)
     suffixIcon: isPassword
         ? IconButton(
             icon: Icon(
@@ -29,7 +28,6 @@ InputDecoration commonInputDecoration(
             ? Icon(suffixIcon, color: const Color(0xFF5E6C84), size: 20)
             : null),
             
-    // Các đường viền (Border)
     border: OutlineInputBorder(
       borderRadius: BorderRadius.circular(4),
       borderSide: const BorderSide(color: Color(0xFFDFE1E6)),
@@ -43,7 +41,6 @@ InputDecoration commonInputDecoration(
       borderSide: const BorderSide(color: Color(0xFF0079BF), width: 2),
     ),
     
-    // Padding nội dung
     contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
   );
 }
