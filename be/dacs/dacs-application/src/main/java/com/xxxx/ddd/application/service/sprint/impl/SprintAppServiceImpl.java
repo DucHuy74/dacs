@@ -125,6 +125,7 @@ public class SprintAppServiceImpl implements SprintAppService {
         for (UserStory story : stories) {
             if (story.getStatus() != UserStoryStatus.Done) {
                 story.setSprint(null); //về backlog
+                story.setBacklog(sprint.getWorkspace().getBacklog());
                 story.setStatus(UserStoryStatus.ToDo);
             }
         }
