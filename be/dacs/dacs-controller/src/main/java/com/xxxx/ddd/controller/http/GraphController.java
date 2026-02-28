@@ -19,4 +19,9 @@ public class GraphController {
     public GraphResponse getGraph(@PathVariable ("id") String id) {
         return graphService.getGraph(id);
     }
+
+    @GetMapping("/sprint/{id}")
+    public GraphResponse getSprintGraph(@PathVariable("id") String id) {
+        return graphService.getSprintGraph(id);
+    }
 }
