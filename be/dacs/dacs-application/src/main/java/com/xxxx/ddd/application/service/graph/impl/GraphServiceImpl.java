@@ -74,6 +74,7 @@ public class GraphServiceImpl implements GraphService {
                 edges
         );
     }
+
     @Override
     public GraphResponse getSprintGraph(String sprintId) {
 
