@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../viewmodels/home/invite_to_project_view_model.dart';
+import 'home_page.dart';
 
 class InviteToProjectPage extends StatelessWidget {
   final String workspaceId;
@@ -225,7 +226,15 @@ class _InviteViewState extends State<_InviteView> {
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
                       TextButton(
-                        onPressed: () => Navigator.pop(context),
+                        onPressed: () {
+                          Navigator.pushAndRemoveUntil(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const HomePage(),
+                            ),
+                            (route) => false,
+                          );
+                        },
                         child: const Text('Skip for now'),
                       ),
                       const SizedBox(width: 12),
@@ -242,18 +251,16 @@ class _InviteViewState extends State<_InviteView> {
                             : () async {
                                 final currentText = _emailController.text;
 
-                                bool
-                                success = await viewModel.submitInvitations(
-                                  widget.workspaceId,
-                                  currentInputEmail:
-                                      currentText,
-                                );
+                                bool success = await viewModel
+                                    .submitInvitations(
+                                      widget.workspaceId,
+                                      currentInputEmail: currentText,
+                                    );
 
                                 if (!context.mounted) return;
 
                                 if (success) {
-                                  _emailController
-                                      .clear(); 
+                                  _emailController.clear();
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
                                       content: Text(
