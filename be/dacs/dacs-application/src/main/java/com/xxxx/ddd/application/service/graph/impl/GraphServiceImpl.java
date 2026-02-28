@@ -74,5 +74,57 @@ public class GraphServiceImpl implements GraphService {
                 edges
         );
     }
+    @Override
+    public GraphResponse getSprintGraph(String sprintId) {
 
+        var rows = neo4jClient.query("""
+        MATCH (s:Sprint {id:$sprintId})<-[:IN_SPRINT]-(us:UserStory)
+        OPTIONAL MATCH (us)-[r]-(n)
+        RETURN us, r, n,
+               startNode(r) AS fromNode,
+               endNode(r)   AS toNode
+    """)
+                .bind(sprintId).to("sprintId")
+                .fetch()
+                .all();
+
+        Map<String, GraphNodeDTO> nodeMap = new LinkedHashMap<>();
+        List<GraphEdgeDTO> edges = new ArrayList<>();
+
+        for (Map<String, Object> row : rows) {
+
+            if (row.get("us") instanceof org.neo4j.driver.types.Node us) {
+                nodeMap.putIfAbsent(
+                        us.get("id").asString(),
+                        graphNodeMapper.toDto(us)
+                );
+            }
+
+            if (row.get("n") instanceof org.neo4j.driver.types.Node n) {
+                String id = n.containsKey("id")
+                        ? n.get("id").asString()
+                        : n.get("name").asString();
+
+                nodeMap.putIfAbsent(id, graphNodeMapper.toDto(n));
+            }
+
+            if (row.get("r") instanceof org.neo4j.driver.types.Relationship r
+                    && row.get("fromNode") instanceof org.neo4j.driver.types.Node from
+                    && row.get("toNode") instanceof org.neo4j.driver.types.Node to) {
+
+                edges.add(new GraphEdgeDTO(
+                        from.get("id").asString(),
+                        to.containsKey("id")
+                                ? to.get("id").asString()
+                                : to.get("name").asString(),
+                        r.type()
+                ));
+            }
+        }
+
+        return new GraphResponse(
+                new ArrayList<>(nodeMap.values()),
+                edges
+        );
+    }
 }

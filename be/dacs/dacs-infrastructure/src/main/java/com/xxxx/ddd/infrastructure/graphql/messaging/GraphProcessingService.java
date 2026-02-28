@@ -32,29 +32,61 @@ public class GraphProcessingService {
         params.put("workspaceId", event.workspaceId());
         params.put("sprintId", event.sprintId());
 
-        neo4jClient.query("""
-MERGE (ws:Workspace {id:$workspaceId})
-
-MERGE (b:Backlog {id:$backlogId})
-MERGE (ws)-[:HAS_BACKLOG]->(b)
-
-MERGE (us:UserStory {id:$id})
-SET us.storyText = $storyText
-
-MERGE (b)-[:CONTAINS]->(us)
-
-MERGE (actor:Actor {name:$actor})
-MERGE (action:Action {name:$action})
-MERGE (obj:Object {name:$object})
-
-MERGE (us)-[:HAS_ACTOR]->(actor)
-MERGE (us)-[:PERFORMS]->(action)
-MERGE (us)-[:TARGETS]->(obj)
-
-FOREACH (_ IN CASE WHEN $sprintId IS NULL THEN [] ELSE [1] END |
+/*
+* sprintId = null, backlogId != null
+* FOREACH (_ IN CASE WHEN $backlogId IS NULL THEN [] ELSE [1] END |
+    MERGE (b:Backlog {id:$backlogId})
+    MERGE (ws)-[:HAS_BACKLOG]->(b)
+    MERGE (b)-[:CONTAINS]->(us)
+)
+* -> tạo graph ở backlog
+*
+* sprintId != null, backlogId = null
+* FOREACH (_ IN CASE WHEN $sprintId IS NULL THEN [] ELSE [1] END |
+    MATCH (oldB:Backlog)-[r:CONTAINS]->(us)
+    DELETE r
+)
+* xóa relation cũ của user story đó trong backlog
+*
+* FOREACH (_ IN CASE WHEN $sprintId IS NULL THEN [] ELSE [1] END |
     MERGE (s:Sprint {id:$sprintId})
     MERGE (us)-[:IN_SPRINT]->(s)
 )
+* tạo relation mới với sprint
+* */
+        neo4jClient.query("""
+                        MERGE (ws:Workspace {id:$workspaceId})
+                        
+                                                    MERGE (us:UserStory {id:$id})
+                                                    SET us.storyText = $storyText
+                        
+                                                    // ===== BACKLOG =====
+                                                    FOREACH (_ IN CASE WHEN $backlogId IS NOT NULL THEN [1] ELSE [] END |
+                                                        MERGE (b:Backlog {id:$backlogId})
+                                                        MERGE (ws)-[:HAS_BACKLOG]->(b)
+                                                        MERGE (b)-[:CONTAINS]->(us)
+                                                    )
+                        
+                                                    // ===== REMOVE OLD BACKLOG RELATION IF MOVED TO SPRINT =====
+                                                    WITH us
+                                                    OPTIONAL MATCH (oldB:Backlog)-[r:CONTAINS]->(us)
+                                                    WHERE $sprintId IS NOT NULL
+                                                    DELETE r
+                        
+                                                    // ===== SPRINT =====
+                                                    FOREACH (_ IN CASE WHEN $sprintId IS NOT NULL THEN [1] ELSE [] END |
+                                                        MERGE (s:Sprint {id:$sprintId})
+                                                        MERGE (us)-[:IN_SPRINT]->(s)
+                                                    )
+                        
+                                                    // ===== NLP =====
+                                                    MERGE (actor:Actor {name:$actor})
+                                                    MERGE (action:Action {name:$action})
+                                                    MERGE (obj:Object {name:$object})
+                        
+                                                    MERGE (us)-[:HAS_ACTOR]->(actor)
+                                                    MERGE (us)-[:PERFORMS]->(action)
+                                                    MERGE (us)-[:TARGETS]->(obj)
 """)
                 .bindAll(params)
                 .run();

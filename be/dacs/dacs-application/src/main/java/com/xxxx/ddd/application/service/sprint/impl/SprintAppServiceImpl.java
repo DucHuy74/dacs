@@ -90,16 +90,19 @@ public class SprintAppServiceImpl implements SprintAppService {
 
         sprint.setStatus(SprintStatus.InProgress);
 
-//        List<UserStory> stories = userStoryRepository.findBySprint_Id(sprintId);
-//        for (UserStory story : stories) {
-//            publisher.publishEvent(
-//                    new UserStoryCreatedEvent(
-//                            story.getId(),
-//                            story.getStoryText(),
-//                            sprintId
-//                    )
-//            );
-//        }
+        List<UserStory> stories = userStoryRepository.findBySprint_Id(sprintId);
+
+        for (UserStory story : stories) {
+            publisher.publishEvent(
+                    new UserStoryCreatedEvent(
+                            story.getId(),
+                            story.getStoryText(),
+                            sprintId,
+                            null,
+                            sprint.getWorkspace().getId()
+                    )
+            );
+        }
     }
 
     //Complete Sprint
@@ -143,6 +146,7 @@ public class SprintAppServiceImpl implements SprintAppService {
         }
 
         story.setSprint(sprint);
+        story.setBacklog(null);
     }
 
     //Remove user story khỏi sprint (về backlog)
