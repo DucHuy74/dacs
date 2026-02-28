@@ -3,6 +3,8 @@ import '../../services/auth/auth_service.dart';
 import 'package:frontend/auth/auth_gate.dart';
 import '../../views/home/home_page.dart';
 import 'notification_popup.dart';
+import '../../models/home/user_profile_model.dart';
+import '../../views/home/profile_view.dart';
 
 class TaskFlowAppBar extends StatelessWidget implements PreferredSizeWidget {
   final bool isMobile;
@@ -23,16 +25,14 @@ class TaskFlowAppBar extends StatelessWidget implements PreferredSizeWidget {
       context: context,
       barrierDismissible: true,
       barrierLabel: 'Dismiss',
-      barrierColor:
-          Colors.transparent, 
+      barrierColor: Colors.transparent,
       transitionDuration: const Duration(milliseconds: 200),
       pageBuilder: (context, animation, secondaryAnimation) {
         return Stack(
           children: [
             Positioned(
               top: 56.0,
-              right:
-                  120.0,
+              right: 120.0,
               child: NotificationPopup(
                 onClose: () => Navigator.of(context).pop(),
               ),
@@ -160,7 +160,11 @@ class TaskFlowAppBar extends StatelessWidget implements PreferredSizeWidget {
         ),
       ),
       onSelected: (value) async {
-        if (value == 1) {
+        if (value == 0) {
+          Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (context) => const ProfilePage()));
+        } else if (value == 1) {
           final confirmed = await showDialog<bool>(
             context: context,
             builder: (ctx) => AlertDialog(
@@ -193,6 +197,16 @@ class TaskFlowAppBar extends StatelessWidget implements PreferredSizeWidget {
         }
       },
       itemBuilder: (context) => [
+        const PopupMenuItem<int>(
+          value: 0,
+          child: Row(
+            children: [
+              Icon(Icons.person, color: Color(0xFF172B4D)),
+              SizedBox(width: 8),
+              Text('My Profile'),
+            ],
+          ),
+        ),
         const PopupMenuItem<int>(
           value: 1,
           child: Row(

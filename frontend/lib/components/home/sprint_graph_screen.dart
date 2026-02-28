@@ -1,11 +1,10 @@
-// lib/components/home/sprint_graph_screen.dart (Hoặc đường dẫn tuỳ bạn)
+// lib/components/home/sprint_graph_screen.dart
 import 'dart:math';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 
-import '../../models/backlog/graph_model.dart';
-import '../../viewmodels/backlog/graph_view_model.dart';
+import '../../models/backlog/user_story_model.dart';
+import '../../services/backlog/sprint_service.dart';
 
 // =============================================================================
 // THEME CONSTANTS
@@ -15,7 +14,6 @@ const kSubjectFill = Color(0xFF161B22);
 const kSubjectBorder = Color(0xFF58A6FF);
 const kVerbFill = Color(0xFF1A1040);
 const kVerbBorder = Color(0xFF7C3AED);
-const kVerbGlow = Color(0xFF7C3AED);
 const kObjectFill = Color(0xFF0D1117);
 const kObjectBorder = Color(0xFF22D3EE);
 const kLineColor = Color(0x556E7FBF);
@@ -27,9 +25,30 @@ const kDoneColor = Color(0xFF238636);
 const kInProgressColor = Color(0xFFD29922);
 
 // =============================================================================
-// CLASS WRAPPER: BỌC PROVIDER
+// INTERNAL MODEL (Giống AnalyzedStory của Backlog)
 // =============================================================================
-class SprintGraphScreen extends StatelessWidget {
+class SprintSvoStory {
+  final String id;
+  final String rawText;
+  final String subject;
+  final String verb;
+  final String object;
+  final String status;
+
+  SprintSvoStory({
+    required this.id,
+    required this.rawText,
+    required this.subject,
+    required this.verb,
+    required this.object,
+    required this.status,
+  });
+}
+
+// =============================================================================
+// MAIN SCREEN
+// =============================================================================
+class SprintGraphScreen extends StatefulWidget {
   final String sprintId;
   final String sprintName;
 
@@ -40,37 +59,19 @@ class SprintGraphScreen extends StatelessWidget {
   }) : super(key: key);
 
   @override
-  Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => GraphViewModel(),
-      child: _SprintGraphScreenContent(
-        sprintId: sprintId,
-        sprintName: sprintName,
-      ),
-    );
-  }
+  State<SprintGraphScreen> createState() => _SprintGraphScreenState();
 }
 
-// =============================================================================
-// CLASS VIEW CONTENT
-// =============================================================================
-class _SprintGraphScreenContent extends StatefulWidget {
-  final String sprintId;
-  final String sprintName;
+enum NodeType { subject, verb, object }
 
-  const _SprintGraphScreenContent({
-    Key? key,
-    required this.sprintId,
-    required this.sprintName,
-  }) : super(key: key);
-
-  @override
-  _SprintGraphScreenContentState createState() =>
-      _SprintGraphScreenContentState();
-}
-
-class _SprintGraphScreenContentState extends State<_SprintGraphScreenContent>
+class _SprintGraphScreenState extends State<SprintGraphScreen>
     with SingleTickerProviderStateMixin {
+  final SprintService _sprintService = SprintService();
+
+  bool _isLoading = true;
+  String? _errorMessage;
+
+  List<SprintSvoStory> _stories = [];
   Map<String, Offset> nodePositions = {};
   Map<String, String> verbToTargetKey = {};
 
@@ -78,6 +79,10 @@ class _SprintGraphScreenContentState extends State<_SprintGraphScreenContent>
   Set<String> zonedSubjects = {};
   bool _isZoningMode = false;
   String? _hoveredNodeKey;
+
+  bool _isLassoMode = false;
+  List<Offset> _drawnPoints = [];
+  Set<String> _selectedNodeKeys = {};
 
   late AnimationController _spinController;
 
@@ -88,11 +93,7 @@ class _SprintGraphScreenContentState extends State<_SprintGraphScreenContent>
       vsync: this,
       duration: const Duration(seconds: 2),
     )..repeat();
-
-    // Nạp dữ liệu khi mở màn hình
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadData();
-    });
+    _loadSprintStories();
   }
 
   @override
@@ -101,34 +102,84 @@ class _SprintGraphScreenContentState extends State<_SprintGraphScreenContent>
     super.dispose();
   }
 
-  Future<void> _loadData() async {
-    final vm = context.read<GraphViewModel>();
-    await vm.fetchGraphData(widget.sprintId);
+  @override
+  void didUpdateWidget(covariant SprintGraphScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.sprintId != widget.sprintId) {
+      _loadSprintStories();
+    }
+  }
 
-    if (mounted && vm.stories.isNotEmpty) {
+  // LẤY TRỰC TIẾP TỪ SPRINT SERVICE THAY VÌ GRAPHQL ĐỂ ĐẢM BẢO DỮ LIỆU CHUẨN XÁC
+  Future<void> _loadSprintStories() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final List<UserStoryModel> apiStories = await _sprintService
+          .getStoriesInSprint(widget.sprintId);
+
+      // Phân tích NLP giả lập (như BacklogViewModel)
+      List<SprintSvoStory> parsedStories = apiStories.map((story) {
+        final text = story.storyText.toLowerCase();
+        String subject = "user";
+        String verb = "action";
+        String object = "target";
+
+        final iWantToIdx = text.indexOf("i want to");
+        if (iWantToIdx != -1) {
+          final asAIdx = text.indexOf("as a");
+          if (asAIdx != -1) {
+            final commaIdx = text.indexOf(",", asAIdx);
+            if (commaIdx != -1 && commaIdx < iWantToIdx) {
+              subject = text.substring(asAIdx + 4, commaIdx).trim();
+            }
+          }
+          final parts = text.substring(iWantToIdx + 9).trim().split(" ");
+          if (parts.isNotEmpty) {
+            verb = parts[0];
+            if (parts.length > 1) {
+              object = parts.sublist(1).join(" ").split("so that")[0].trim();
+            }
+          }
+        }
+        return SprintSvoStory(
+          id: story.id,
+          rawText: story.storyText,
+          subject: subject,
+          verb: verb,
+          object: object,
+          status: story.status,
+        );
+      }).toList();
+
       setState(() {
-        expandedSubjects.addAll(_getUniqueSubjects(vm.stories));
-        _calculateLayout(vm.stories);
+        _stories = parsedStories;
+        expandedSubjects.addAll(_getUniqueSubjects(parsedStories));
+        _calculateLayout(parsedStories);
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = "Lỗi tải dữ liệu Sprint: $e";
+        _isLoading = false;
       });
     }
   }
 
-  List<String> _getUniqueSubjects(List<AnalyzedStory> stories) {
-    List<String> subjects = [];
-    for (var s in stories) {
-      if (!subjects.contains(s.subject)) subjects.add(s.subject);
-    }
-    return subjects;
+  List<String> _getUniqueSubjects(List<SprintSvoStory> stories) {
+    return stories.map((s) => s.subject).toSet().toList();
   }
 
-  bool _isObjectASubject(String objectName, List<AnalyzedStory> stories) {
+  bool _isObjectASubject(String objectName, List<SprintSvoStory> stories) {
     return _getUniqueSubjects(stories).contains(objectName);
   }
 
-  String _makeObjectKey(String name, USStatus status) =>
-      "obj_${name}_${status.name}";
+  String _makeObjectKey(String name, String status) => "obj_${name}_$status";
 
-  void _calculateLayout(List<AnalyzedStory> stories) {
+  void _calculateLayout(List<SprintSvoStory> stories) {
     nodePositions.clear();
     verbToTargetKey.clear();
 
@@ -193,24 +244,167 @@ class _SprintGraphScreenContentState extends State<_SprintGraphScreenContent>
     }
   }
 
-  int _countStoriesForObject(String objectName, List<AnalyzedStory> stories) {
-    return stories.where((s) => s.object == objectName).length;
+  void _onLassoPanStart(DragStartDetails details) {
+    setState(() {
+      _drawnPoints = [details.localPosition];
+      _selectedNodeKeys.clear();
+    });
+  }
+
+  void _onLassoPanUpdate(DragUpdateDetails details) {
+    setState(() => _drawnPoints.add(details.localPosition));
+  }
+
+  void _onLassoPanEnd(DragEndDetails details) {
+    setState(() {
+      if (_drawnPoints.length > 2) {
+        Path selectionPath = Path()..addPolygon(_drawnPoints, true);
+        nodePositions.forEach((key, pos) {
+          if (selectionPath.contains(pos)) _selectedNodeKeys.add(key);
+        });
+      }
+      _drawnPoints.clear();
+      _isLassoMode = false;
+    });
+  }
+
+  // ===========================================================================
+  // HÀM XỬ LÝ COMPLETE SPRINT
+  // ===========================================================================
+  Future<void> _handleCompleteSprint() async {
+    // Gọi API Complete Sprint
+    final success = await _sprintService.completeSprint(widget.sprintId);
+
+    if (success) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Sprint Completed Successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+
+        // Theo logic của bạn: ToDo -> Về Backlog, Done -> Biến mất.
+        // Thực tế backend sẽ xử lý việc này trong database.
+        // Flutter chỉ cần load lại trang là nó tự động lọc ra các Story mới.
+
+        setState(() {
+          _selectedNodeKeys.clear();
+          // Ta có thể giả lập xoá các Story "Done" khỏi danh sách hiện tại để giao diện update ngay
+          _stories.removeWhere((story) => story.status.toUpperCase() == 'DONE');
+          _calculateLayout(_stories);
+        });
+
+        // Tùy chọn: Báo cho màn hình cha (Workspace) để nó reload lại Backlog List.
+      }
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to complete sprint'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  // MENU KHI CLICK VÀO NODE USER STORY
+  void _showActionMenu(BuildContext context, SprintSvoStory story) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF161B22),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        side: BorderSide(color: Color(0xFF30363D)),
+      ),
+      builder: (c) => Container(
+        height: 250,
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              story.rawText,
+              style: const TextStyle(
+                color: kTextPrimary,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                _statusChip(story.status),
+                const SizedBox(width: 12),
+                Text(
+                  '${story.subject} → ${story.verb} → ${story.object}',
+                  style: const TextStyle(color: kTextSecondary, fontSize: 13),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'ID: ${story.id}',
+              style: const TextStyle(color: kTextSecondary, fontSize: 12),
+            ),
+            const Spacer(),
+
+            // NÚT COMPLETE SPRINT Ở ĐÂY
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                icon: const Icon(Icons.check_circle_outline),
+                label: const Text('Complete Sprint'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: kDoneColor,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+                onPressed: () {
+                  Navigator.pop(context); // Đóng menu
+                  _handleCompleteSprint(); // Gọi hàm
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _statusChip(String status) {
+    Color color = status.toUpperCase() == 'DONE'
+        ? kDoneColor
+        : (status.toUpperCase() == 'INPROGRESS'
+              ? kInProgressColor
+              : kTextSecondary);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.6)),
+      ),
+      child: Text(
+        status.toUpperCase(),
+        style: TextStyle(
+          color: color,
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final vm = context.watch<GraphViewModel>();
-
     return Scaffold(
       backgroundColor: kBgColor,
       appBar: AppBar(
         title: Text(
-          widget.sprintName.isNotEmpty ? widget.sprintName : "Backlog Graph",
-          style: const TextStyle(
-            color: kTextPrimary,
-            fontSize: 16,
-            letterSpacing: 1.2,
-          ),
+          widget.sprintName.isNotEmpty ? widget.sprintName : "Sprint Graph",
+          style: const TextStyle(color: kTextPrimary, fontSize: 16),
         ),
         backgroundColor: const Color(0xFF161B22),
         elevation: 0,
@@ -219,186 +413,117 @@ class _SprintGraphScreenContentState extends State<_SprintGraphScreenContent>
           child: Container(color: const Color(0xFF30363D), height: 1),
         ),
       ),
-      floatingActionButton: _buildFab(vm.stories),
-      body: vm.isLoading
+      floatingActionButton: _buildFab(),
+      body: _isLoading
           ? const Center(
               child: CircularProgressIndicator(color: kSubjectBorder),
             )
-          : vm.errorMessage != null
+          : _errorMessage != null
           ? Center(
               child: Text(
-                vm.errorMessage!,
+                _errorMessage!,
                 style: const TextStyle(color: Colors.redAccent, fontSize: 16),
               ),
             )
           : Stack(
               children: [
                 InteractiveViewer(
+                  panEnabled: !_isLassoMode,
+                  scaleEnabled: !_isLassoMode,
                   constrained: false,
                   boundaryMargin: const EdgeInsets.all(2000),
                   minScale: 0.1,
                   maxScale: 4.0,
-                  child: SizedBox(
-                    width: 2500,
-                    height: 2500,
-                    child: Stack(
-                      children: [
-                        AnimatedBuilder(
-                          animation: _spinController,
-                          builder: (_, __) => CustomPaint(
-                            size: const Size(2500, 2500),
-                            painter: DarkLinesPainter(
-                              nodePositions: nodePositions,
-                              expandedSubjects: expandedSubjects,
-                              mockData: vm.stories,
-                              verbToTargetKey: verbToTargetKey,
-                              subjects: _getUniqueSubjects(vm.stories),
-                              hoveredKey: _hoveredNodeKey,
+                  child: GestureDetector(
+                    onPanStart: _isLassoMode ? _onLassoPanStart : null,
+                    onPanUpdate: _isLassoMode ? _onLassoPanUpdate : null,
+                    onPanEnd: _isLassoMode ? _onLassoPanEnd : null,
+                    child: SizedBox(
+                      width: 2500,
+                      height: 2500,
+                      child: Stack(
+                        children: [
+                          AnimatedBuilder(
+                            animation: _spinController,
+                            builder: (_, __) => CustomPaint(
+                              size: const Size(2500, 2500),
+                              painter: DarkLinesPainter(
+                                nodePositions: nodePositions,
+                                expandedSubjects: expandedSubjects,
+                                mockData: _stories,
+                                verbToTargetKey: verbToTargetKey,
+                                subjects: _getUniqueSubjects(_stories),
+                                hoveredKey: _hoveredNodeKey,
+                              ),
                             ),
                           ),
-                        ),
-                        CustomPaint(
-                          size: const Size(2500, 2500),
-                          painter: ZoningPainter(
-                            nodePositions: nodePositions,
-                            zonedSubjects: zonedSubjects,
-                            mockData: vm.stories,
-                            isObjectASubject: (obj) =>
-                                _isObjectASubject(obj, vm.stories),
-                            makeObjectKey: _makeObjectKey,
+                          CustomPaint(
+                            size: const Size(2500, 2500),
+                            painter: ZoningPainter(
+                              nodePositions: nodePositions,
+                              zonedSubjects: zonedSubjects,
+                              mockData: _stories,
+                              isObjectASubject: (obj) =>
+                                  _isObjectASubject(obj, _stories),
+                              makeObjectKey: (name, status) =>
+                                  _makeObjectKey(name, status),
+                            ),
                           ),
-                        ),
-                        ..._buildNodeWidgets(vm.stories),
-                      ],
+                          if (_isLassoMode && _drawnPoints.isNotEmpty)
+                            CustomPaint(
+                              size: const Size(2500, 2500),
+                              painter: LassoPainter(drawnPoints: _drawnPoints),
+                            ),
+                          ..._buildNodeWidgets(),
+                        ],
+                      ),
                     ),
                   ),
                 ),
-                Positioned(top: 16, right: 16, child: _buildLegend(vm.stories)),
+                Positioned(top: 16, right: 16, child: _buildLegend()),
+                if (_selectedNodeKeys.isNotEmpty)
+                  Positioned(
+                    bottom: 32,
+                    left: 0,
+                    right: 0,
+                    child: Center(child: _buildStartSprintPanel()),
+                  ),
               ],
             ),
     );
   }
 
-  Widget _buildLegend(List<AnalyzedStory> stories) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFF161B22),
-        border: Border.all(color: const Color(0xFF30363D)),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'RADIAL S-V-O GRAPH',
-            style: TextStyle(
-              color: kTextSecondary,
-              fontSize: 10,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 1.5,
-            ),
-          ),
-          const SizedBox(height: 10),
-          _legendItem(kSubjectBorder, 'Actor (S)', isCircle: true),
-          _legendItem(kObjectBorder, 'Object (O)', isCircle: false),
-          _legendItem(kVerbBorder, 'Action (V)', isCircle: true),
-          const SizedBox(height: 6),
-          _legendItem(kDoneColor, 'Done', isDot: true),
-          _legendItem(kInProgressColor, 'In Progress', isDot: true),
-          const SizedBox(height: 8),
-          Text(
-            '${_getUniqueSubjects(stories).length} entities / ${stories.length} stories',
-            style: const TextStyle(color: kTextSecondary, fontSize: 10),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _legendItem(
-    Color color,
-    String label, {
-    bool isCircle = false,
-    bool isDot = false,
-  }) {
-    Widget icon;
-    if (isDot) {
-      icon = Container(
-        width: 10,
-        height: 10,
-        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-      );
-    } else if (isCircle) {
-      icon = Container(
-        width: 14,
-        height: 14,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          border: Border.all(color: color, width: 2),
-          color: Colors.transparent,
-        ),
-      );
-    } else {
-      icon = Container(
-        width: 18,
-        height: 12,
-        decoration: BoxDecoration(
-          border: Border.all(color: color, width: 1.5),
-          borderRadius: BorderRadius.circular(3),
-          color: Colors.transparent,
-        ),
-      );
-    }
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
-      child: Row(
-        children: [
-          icon,
-          const SizedBox(width: 8),
-          Text(
-            label,
-            style: const TextStyle(color: kTextSecondary, fontSize: 11),
-          ),
-        ],
-      ),
-    );
-  }
-
-  List<Widget> _buildNodeWidgets(List<AnalyzedStory> stories) {
+  List<Widget> _buildNodeWidgets() {
     List<Widget> widgets = [];
-    List<String> subjects = _getUniqueSubjects(stories);
+    List<String> subjects = _getUniqueSubjects(_stories);
 
     for (var subName in subjects) {
       String key = "sub_$subName";
       if (nodePositions.containsKey(key)) {
-        widgets.add(_buildNode(key, subName, NodeType.subject, null, stories));
+        widgets.add(_buildNode(key, subName, NodeType.subject, null));
       }
     }
 
     for (var subName in expandedSubjects) {
-      final subStories = stories.where((e) => e.subject == subName).toList();
+      final subStories = _stories.where((e) => e.subject == subName).toList();
       for (var s in subStories) {
         String verbKey = "verb_${s.id}";
         if (nodePositions.containsKey(verbKey)) {
-          widgets.add(_buildNode(verbKey, s.verb, NodeType.verb, s, stories));
+          widgets.add(_buildNode(verbKey, s.verb, NodeType.verb, s));
         }
       }
     }
 
     Set<String> renderedObjectKeys = {};
-    for (var story in stories) {
-      if (_isObjectASubject(story.object, stories)) continue;
+    for (var story in _stories) {
+      if (_isObjectASubject(story.object, _stories)) continue;
       String objKey = _makeObjectKey(story.object, story.status);
       if (!renderedObjectKeys.contains(objKey) &&
           nodePositions.containsKey(objKey)) {
         renderedObjectKeys.add(objKey);
-        widgets.add(
-          _buildNode(objKey, story.object, NodeType.object, story, stories),
-        );
+        widgets.add(_buildNode(objKey, story.object, NodeType.object, story));
       }
     }
-
     return widgets;
   }
 
@@ -406,8 +531,7 @@ class _SprintGraphScreenContentState extends State<_SprintGraphScreenContent>
     String key,
     String text,
     NodeType type,
-    AnalyzedStory? story,
-    List<AnalyzedStory> stories,
+    SprintSvoStory? story,
   ) {
     Offset pos = nodePositions[key]!;
     double width = type == NodeType.verb ? 64 : 110;
@@ -416,8 +540,9 @@ class _SprintGraphScreenContentState extends State<_SprintGraphScreenContent>
         : (type == NodeType.subject ? 60 : 44);
 
     bool isHovered = _hoveredNodeKey == key;
+    bool isSelected = _selectedNodeKeys.contains(key);
     int storyCount = type == NodeType.object
-        ? _countStoriesForObject(text, stories)
+        ? _stories.where((s) => s.object == text).length
         : 0;
 
     return Positioned(
@@ -427,19 +552,52 @@ class _SprintGraphScreenContentState extends State<_SprintGraphScreenContent>
         mainAxisSize: MainAxisSize.min,
         children: [
           MouseRegion(
-            cursor: SystemMouseCursors.move,
+            cursor: _isLassoMode
+                ? SystemMouseCursors.precise
+                : SystemMouseCursors.move,
             onEnter: (_) => setState(() => _hoveredNodeKey = key),
             onExit: (_) => setState(() => _hoveredNodeKey = null),
             child: GestureDetector(
               onPanUpdate: (d) {
-                if (!_isZoningMode)
+                if (!_isZoningMode && !_isLassoMode)
                   setState(() => _avoidCollision(key, pos + d.delta));
               },
-              onTap: () => _handleTap(key, text, type, story, stories),
+              onTap: () {
+                if (_isLassoMode) {
+                  setState(() {
+                    if (isSelected)
+                      _selectedNodeKeys.remove(key);
+                    else
+                      _selectedNodeKeys.add(key);
+                  });
+                } else if (type == NodeType.subject && !_isZoningMode) {
+                  setState(() {
+                    if (expandedSubjects.contains(text))
+                      expandedSubjects.remove(text);
+                    else
+                      expandedSubjects.add(text);
+                    _calculateLayout(_stories);
+                  });
+                } else if (type == NodeType.object && story != null) {
+                  // MỞ MENU COMPLETE KHI CLICK VÀO OBJECT
+                  _showActionMenu(context, story);
+                } else if (type == NodeType.verb && story != null) {
+                  // HOẶC MỞ MENU COMPLETE KHI CLICK VÀO VERB CŨNG ĐƯỢC
+                  _showActionMenu(context, story);
+                }
+              },
               child: Stack(
                 clipBehavior: Clip.none,
                 children: [
-                  _buildNodeUI(text, type, story, width, height, isHovered),
+                  _buildNodeUI(
+                    text,
+                    type,
+                    story,
+                    width,
+                    height,
+                    isHovered,
+                    isSelected,
+                  ),
                   if (isHovered && type == NodeType.object)
                     Positioned(
                       left: width + 8,
@@ -465,6 +623,132 @@ class _SprintGraphScreenContentState extends State<_SprintGraphScreenContent>
         ],
       ),
     );
+  }
+
+  Widget _buildNodeUI(
+    String text,
+    NodeType type,
+    SprintSvoStory? story,
+    double w,
+    double h,
+    bool isHovered,
+    bool isSelected,
+  ) {
+    switch (type) {
+      case NodeType.subject:
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          width: w,
+          height: h,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: isSelected ? kSubjectBorder.withOpacity(0.3) : kSubjectFill,
+            borderRadius: BorderRadius.circular(h / 2),
+            border: Border.all(
+              color: isSelected
+                  ? Colors.white
+                  : (isHovered
+                        ? kSubjectBorder
+                        : kSubjectBorder.withOpacity(0.7)),
+              width: isSelected || isHovered ? 2.5 : 2.0,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: kSubjectBorder.withOpacity(
+                  isSelected || isHovered ? 0.4 : 0.15,
+                ),
+                blurRadius: isSelected || isHovered ? 20 : 12,
+              ),
+            ],
+          ),
+          child: Text(
+            text,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: kTextPrimary,
+              fontWeight: FontWeight.bold,
+              fontSize: text.length > 8 ? 12 : 14,
+            ),
+          ),
+        );
+      case NodeType.verb:
+        return AnimatedBuilder(
+          animation: _spinController,
+          builder: (context, child) => CustomPaint(
+            painter: _GlowCirclePainter(
+              color: isSelected ? Colors.white : kVerbBorder,
+              glowRadius: (isSelected || isHovered) ? 0.8 : 0.4,
+              animValue: _spinController.value,
+            ),
+            child: Container(
+              width: w,
+              height: h,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: kVerbFill,
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: isSelected
+                      ? Colors.white
+                      : kVerbBorder.withOpacity(isHovered ? 1.0 : 0.8),
+                  width: isSelected ? 2.5 : 1.5,
+                ),
+              ),
+              child: Text(
+                text,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: kTextPrimary,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+        );
+      case NodeType.object:
+        Color borderColor = story?.status.toUpperCase() == 'DONE'
+            ? kDoneColor
+            : (story?.status.toUpperCase() == 'INPROGRESS'
+                  ? kInProgressColor
+                  : kObjectBorder);
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          width: w,
+          height: h,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: isSelected ? borderColor.withOpacity(0.3) : kObjectFill,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: isSelected
+                  ? Colors.white
+                  : (isHovered ? borderColor : borderColor.withOpacity(0.7)),
+              width: isSelected || isHovered ? 2.0 : 1.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: borderColor.withOpacity(
+                  isSelected || isHovered ? 0.35 : 0.1,
+                ),
+                blurRadius: isSelected || isHovered ? 16 : 6,
+              ),
+            ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Text(
+              text,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: kTextPrimary,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        );
+    }
   }
 
   Widget _buildTooltip(String objectName, int count) {
@@ -504,175 +788,147 @@ class _SprintGraphScreenContentState extends State<_SprintGraphScreenContent>
     );
   }
 
-  void _handleTap(
-    String key,
-    String text,
-    NodeType type,
-    AnalyzedStory? story,
-    List<AnalyzedStory> stories,
-  ) {
-    if (_isZoningMode && type == NodeType.subject) {
-      setState(() {
-        if (zonedSubjects.contains(text))
-          zonedSubjects.remove(text);
-        else
-          zonedSubjects.add(text);
-      });
-    } else if (type == NodeType.subject && !_isZoningMode) {
-      setState(() {
-        if (expandedSubjects.contains(text))
-          expandedSubjects.remove(text);
-        else
-          expandedSubjects.add(text);
-        _calculateLayout(stories);
-      });
-    } else if (type == NodeType.object && story != null) {
-      _showActionMenu(context, story);
-    }
-  }
-
-  Widget _buildNodeUI(
-    String text,
-    NodeType type,
-    AnalyzedStory? story,
-    double w,
-    double h,
-    bool isHovered,
-  ) {
-    switch (type) {
-      case NodeType.subject:
-        return _buildSubjectNode(text, w, h, isHovered);
-      case NodeType.verb:
-        return _buildVerbNode(text, w, h, isHovered);
-      case NodeType.object:
-        return _buildObjectNode(text, story, w, h, isHovered);
-    }
-  }
-
-  Widget _buildSubjectNode(String text, double w, double h, bool isHovered) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
-      width: w,
-      height: h,
-      alignment: Alignment.center,
+  Widget _buildStartSprintPanel() {
+    int storiesCount = _selectedNodeKeys
+        .where((k) => k.startsWith('verb_'))
+        .length;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
       decoration: BoxDecoration(
-        color: kSubjectFill,
-        borderRadius: BorderRadius.circular(h / 2),
-        border: Border.all(
-          color: isHovered ? kSubjectBorder : kSubjectBorder.withOpacity(0.7),
-          width: isHovered ? 2.5 : 2.0,
-        ),
+        color: const Color(0xFF161B22),
+        borderRadius: BorderRadius.circular(30),
+        border: Border.all(color: kVerbBorder, width: 2),
         boxShadow: [
           BoxShadow(
-            color: kSubjectBorder.withOpacity(isHovered ? 0.4 : 0.15),
-            blurRadius: isHovered ? 20 : 12,
+            color: kVerbBorder.withOpacity(0.3),
+            blurRadius: 20,
+            spreadRadius: 2,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
-      child: Text(
-        text,
-        textAlign: TextAlign.center,
-        style: TextStyle(
-          color: kTextPrimary,
-          fontWeight: FontWeight.bold,
-          fontSize: text.length > 8 ? 12 : 14,
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            '${_selectedNodeKeys.length} Nodes Selected',
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+            ),
+          ),
+          const SizedBox(width: 20),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: kVerbBorder,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+            ),
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Cập nhật trạng thái $storiesCount stories!'),
+                ),
+              );
+              setState(() => _selectedNodeKeys.clear());
+            },
+            child: const Text(
+              'Update',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+          const SizedBox(width: 8),
+          IconButton(
+            icon: const Icon(Icons.close, color: kTextSecondary),
+            onPressed: () => setState(() => _selectedNodeKeys.clear()),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildVerbNode(String text, double w, double h, bool isHovered) {
-    return AnimatedBuilder(
-      animation: _spinController,
-      builder: (context, child) {
-        return CustomPaint(
-          painter: _GlowCirclePainter(
-            color: kVerbBorder,
-            glowRadius: isHovered ? 0.6 : 0.4,
-            animValue: _spinController.value,
-          ),
-          child: Container(
-            width: w,
-            height: h,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: kVerbFill,
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: kVerbBorder.withOpacity(isHovered ? 1.0 : 0.8),
-                width: 1.5,
-              ),
-            ),
-            child: Text(
-              text,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: kTextPrimary,
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildObjectNode(
-    String text,
-    AnalyzedStory? story,
-    double w,
-    double h,
-    bool isHovered,
-  ) {
-    Color borderColor = story?.status == USStatus.done
-        ? kDoneColor
-        : (story?.status == USStatus.inProgress
-              ? kInProgressColor
-              : kObjectBorder);
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
-      width: w,
-      height: h,
-      alignment: Alignment.center,
+  Widget _buildLegend() {
+    return Container(
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: kObjectFill,
+        color: const Color(0xFF161B22),
+        border: Border.all(color: const Color(0xFF30363D)),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: isHovered ? borderColor : borderColor.withOpacity(0.7),
-          width: isHovered ? 2.0 : 1.5,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: borderColor.withOpacity(isHovered ? 0.35 : 0.1),
-            blurRadius: isHovered ? 16 : 6,
-          ),
-        ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        child: Text(
-          text,
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            color: kTextPrimary,
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'SPRINT S-V-O',
+            style: TextStyle(
+              color: kTextSecondary,
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1.5,
+            ),
           ),
-        ),
+          const SizedBox(height: 10),
+          _legendItem(kSubjectBorder, 'Actor (S)', isCircle: true),
+          _legendItem(kObjectBorder, 'Object (O)', isCircle: false),
+          _legendItem(kVerbBorder, 'Action (V)', isCircle: true),
+        ],
       ),
     );
   }
 
-  Widget _buildFab(List<AnalyzedStory> stories) {
+  Widget _legendItem(
+    Color color,
+    String label, {
+    bool isCircle = false,
+    bool isDot = false,
+  }) {
+    Widget icon = isCircle
+        ? Container(
+            width: 14,
+            height: 14,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: color, width: 2),
+            ),
+          )
+        : Container(
+            width: 18,
+            height: 12,
+            decoration: BoxDecoration(
+              border: Border.all(color: color, width: 1.5),
+              borderRadius: BorderRadius.circular(3),
+            ),
+          );
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        children: [
+          icon,
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: const TextStyle(color: kTextSecondary, fontSize: 11),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFab() {
     return Column(
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
         _fabButton(
-          heroTag: "z",
-          icon: Icons.ads_click,
-          active: _isZoningMode,
-          onPressed: () => setState(() => _isZoningMode = !_isZoningMode),
+          heroTag: "lasso",
+          icon: Icons.gesture,
+          active: _isLassoMode,
+          onPressed: () => setState(() {
+            _isLassoMode = !_isLassoMode;
+            if (!_isLassoMode) _drawnPoints.clear();
+          }),
         ),
         const SizedBox(height: 10),
         _fabButton(
@@ -681,15 +937,19 @@ class _SprintGraphScreenContentState extends State<_SprintGraphScreenContent>
               ? Icons.unfold_more
               : Icons.unfold_less,
           onPressed: () => setState(() {
-            if (expandedSubjects.length == _getUniqueSubjects(stories).length)
+            if (expandedSubjects.length == _getUniqueSubjects(_stories).length)
               expandedSubjects.clear();
             else
-              expandedSubjects.addAll(_getUniqueSubjects(stories));
-            _calculateLayout(stories);
+              expandedSubjects.addAll(_getUniqueSubjects(_stories));
+            _calculateLayout(_stories);
           }),
         ),
         const SizedBox(height: 10),
-        _fabButton(heroTag: "r", icon: Icons.refresh, onPressed: _loadData),
+        _fabButton(
+          heroTag: "r",
+          icon: Icons.refresh,
+          onPressed: _loadSprintStories,
+        ),
       ],
     );
   }
@@ -709,84 +969,13 @@ class _SprintGraphScreenContentState extends State<_SprintGraphScreenContent>
       child: Icon(icon, color: active ? Colors.white : kTextPrimary, size: 20),
     );
   }
-
-  void _showActionMenu(BuildContext context, AnalyzedStory story) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: const Color(0xFF161B22),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-        side: BorderSide(color: Color(0xFF30363D)),
-      ),
-      builder: (c) => Container(
-        height: 180,
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              story.rawText,
-              style: const TextStyle(
-                color: kTextPrimary,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                _statusChip(story.status),
-                const SizedBox(width: 12),
-                Text(
-                  '${story.subject} → ${story.verb} → ${story.object}',
-                  style: const TextStyle(color: kTextSecondary, fontSize: 13),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'ID: ${story.id}',
-              style: const TextStyle(color: kTextSecondary, fontSize: 12),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _statusChip(USStatus status) {
-    Color color = status == USStatus.done
-        ? kDoneColor
-        : (status == USStatus.inProgress ? kInProgressColor : kTextSecondary);
-    String label = status == USStatus.done
-        ? 'Done'
-        : (status == USStatus.inProgress ? 'In Progress' : 'Todo');
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.2),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.6)),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: color,
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    );
-  }
 }
 
-// =============================================================================
-// GRAPH PAINTERS (DarkLinesPainter, ZoningPainter, _GlowCirclePainter)
-// =============================================================================
+// --- PAINTERS TƯƠNG TỰ BÊN BACKLOG ---
 class DarkLinesPainter extends CustomPainter {
   final Map<String, Offset> nodePositions;
   final Set<String> expandedSubjects;
-  final List<AnalyzedStory> mockData;
+  final List<SprintSvoStory> mockData;
   final Map<String, String> verbToTargetKey;
   final List<String> subjects;
   final String? hoveredKey;
@@ -813,51 +1002,68 @@ class DarkLinesPainter extends CustomPainter {
       for (var s in stories) {
         String verbKey = "verb_${s.id}";
         if (!nodePositions.containsKey(verbKey)) continue;
-
         Offset verbCenter = nodePositions[verbKey]!;
         bool isHighlighted =
             hoveredKey == verbKey ||
             hoveredKey == subKey ||
             (verbToTargetKey[verbKey] != null &&
                 hoveredKey == verbToTargetKey[verbKey]);
-
         final paint = Paint()
           ..color = isHighlighted ? kHighlightLine.withOpacity(0.9) : kLineColor
           ..strokeWidth = isHighlighted ? 2.0 : 1.0
           ..style = PaintingStyle.stroke;
 
-        _drawCurvedLine(canvas, subCenter, verbCenter, paint);
+        final mid1 = Offset(
+          (subCenter.dx + verbCenter.dx) / 2,
+          (subCenter.dy + verbCenter.dy) / 2,
+        );
+        canvas.drawPath(
+          Path()
+            ..moveTo(subCenter.dx, subCenter.dy)
+            ..quadraticBezierTo(
+              mid1.dx,
+              subCenter.dy,
+              verbCenter.dx,
+              verbCenter.dy,
+            ),
+          paint,
+        );
 
         if (verbToTargetKey.containsKey(verbKey)) {
           String targetKey = verbToTargetKey[verbKey]!;
           if (nodePositions.containsKey(targetKey)) {
             Offset objCenter = nodePositions[targetKey]!;
-            _drawCurvedLine(canvas, verbCenter, objCenter, paint);
+            final mid2 = Offset(
+              (verbCenter.dx + objCenter.dx) / 2,
+              (verbCenter.dy + objCenter.dy) / 2,
+            );
+            canvas.drawPath(
+              Path()
+                ..moveTo(verbCenter.dx, verbCenter.dy)
+                ..quadraticBezierTo(
+                  mid2.dx,
+                  verbCenter.dy,
+                  objCenter.dx,
+                  objCenter.dy,
+                ),
+              paint,
+            );
           }
         }
       }
     }
   }
 
-  void _drawCurvedLine(Canvas canvas, Offset from, Offset to, Paint paint) {
-    final mid = Offset((from.dx + to.dx) / 2, (from.dy + to.dy) / 2);
-    final path = Path()
-      ..moveTo(from.dx, from.dy)
-      ..quadraticBezierTo(mid.dx, from.dy, to.dx, to.dy);
-    canvas.drawPath(path, paint);
-  }
-
   @override
-  bool shouldRepaint(covariant DarkLinesPainter old) =>
-      old.hoveredKey != hoveredKey || true;
+  bool shouldRepaint(covariant DarkLinesPainter old) => true;
 }
 
 class ZoningPainter extends CustomPainter {
   final Map<String, Offset> nodePositions;
   final Set<String> zonedSubjects;
-  final List<AnalyzedStory> mockData;
+  final List<SprintSvoStory> mockData;
   final Function(String) isObjectASubject;
-  final Function(String, USStatus) makeObjectKey;
+  final Function(String, String) makeObjectKey;
 
   ZoningPainter({
     required this.nodePositions,
@@ -880,9 +1086,8 @@ class ZoningPainter extends CustomPainter {
       for (var s in stories) {
         if (!isObjectASubject(s.object)) {
           String objKey = makeObjectKey(s.object, s.status);
-          if (nodePositions.containsKey(objKey)) {
+          if (nodePositions.containsKey(objKey))
             _drawDashedCircle(canvas, nodePositions[objKey]!, 54, paint);
-          }
         }
       }
     }
@@ -914,25 +1119,45 @@ class _GlowCirclePainter extends CustomPainter {
   final Color color;
   final double glowRadius;
   final double animValue;
-
   _GlowCirclePainter({
     required this.color,
     required this.glowRadius,
     required this.animValue,
   });
-
   @override
   void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = size.width / 2;
     double pulse = 0.5 + 0.5 * sin(animValue * 2 * pi);
-    final glowPaint = Paint()
-      ..color = color.withOpacity(0.15 + 0.1 * pulse)
-      ..maskFilter = MaskFilter.blur(BlurStyle.normal, 8 + 4 * pulse);
-    canvas.drawCircle(center, radius + 4, glowPaint);
+    canvas.drawCircle(
+      Offset(size.width / 2, size.height / 2),
+      size.width / 2 + 4,
+      Paint()
+        ..color = color.withOpacity(0.15 + 0.1 * pulse)
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, 8 + 4 * pulse),
+    );
   }
 
   @override
-  bool shouldRepaint(covariant _GlowCirclePainter old) =>
-      old.animValue != animValue || old.glowRadius != glowRadius;
+  bool shouldRepaint(covariant _GlowCirclePainter old) => true;
+}
+
+class LassoPainter extends CustomPainter {
+  final List<Offset> drawnPoints;
+  LassoPainter({required this.drawnPoints});
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (drawnPoints.isEmpty) return;
+    final path = Path()..moveTo(drawnPoints.first.dx, drawnPoints.first.dy);
+    for (int i = 1; i < drawnPoints.length; i++)
+      path.lineTo(drawnPoints[i].dx, drawnPoints[i].dy);
+    canvas.drawPath(
+      path,
+      Paint()
+        ..color = Colors.white70
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.0,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant LassoPainter old) => true;
 }

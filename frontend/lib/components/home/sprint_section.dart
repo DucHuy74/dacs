@@ -1,14 +1,15 @@
+// lib/components/home/sprint_section.dart
 import 'package:flutter/material.dart';
 import '../../models/backlog/sprint_model.dart';
 import '../../models/backlog/user_story_model.dart';
 import '../../services/backlog/sprint_service.dart';
-import 'sprint_graph_screen.dart';
 
 class SprintSection extends StatelessWidget {
   final TextEditingController controller;
   final Function(String) onCreateStory;
   final List<SprintModel> sprints;
   final Function(String sprintId, String storyId) onMoveStoryToSprint;
+  final Function(String sprintId, String sprintName) onSprintStarted;
 
   const SprintSection({
     Key? key,
@@ -16,6 +17,7 @@ class SprintSection extends StatelessWidget {
     required this.onCreateStory,
     required this.sprints,
     required this.onMoveStoryToSprint,
+    required this.onSprintStarted,
   }) : super(key: key);
 
   @override
@@ -30,6 +32,7 @@ class SprintSection extends StatelessWidget {
             (sprint) => SprintContainer(
               sprint: sprint,
               onMoveStoryToSprint: onMoveStoryToSprint,
+              onSprintStarted: onSprintStarted,
             ),
           )
           .toList(),
@@ -88,15 +91,16 @@ class SprintSection extends StatelessWidget {
   }
 }
 
-// --- SPRINT CONTAINER ---
 class SprintContainer extends StatefulWidget {
   final SprintModel sprint;
   final Function(String sprintId, String storyId) onMoveStoryToSprint;
+  final Function(String sprintId, String sprintName) onSprintStarted;
 
   const SprintContainer({
     Key? key,
     required this.sprint,
     required this.onMoveStoryToSprint,
+    required this.onSprintStarted,
   }) : super(key: key);
 
   @override
@@ -106,7 +110,7 @@ class SprintContainer extends StatefulWidget {
 class _SprintContainerState extends State<SprintContainer> {
   final SprintService _sprintService = SprintService();
   late Future<List<UserStoryModel>> _storiesFuture;
-  bool _isStarting = false; 
+  bool _isStarting = false;
 
   @override
   void initState() {
@@ -137,21 +141,11 @@ class _SprintContainerState extends State<SprintContainer> {
 
     if (mounted) {
       if (success) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => SprintGraphScreen(
-              sprintId: widget.sprint.id,
-              sprintName: widget.sprint.name,
-            ),
-          ),
-        );
+        widget.onSprintStarted(widget.sprint.id, widget.sprint.name);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text(
-              'Failed to start sprint. Check if another sprint is active.',
-            ),
+            content: Text('Failed to start sprint. Please try again.'),
             backgroundColor: Colors.red,
           ),
         );
@@ -163,32 +157,97 @@ class _SprintContainerState extends State<SprintContainer> {
     if (dateStr == null || dateStr.isEmpty) return "";
     try {
       final date = DateTime.parse(dateStr);
-      final months = [
-        "Jan",
-        "Feb",
-        "Mar",
-        "Apr",
-        "May",
-        "Jun",
-        "Jul",
-        "Aug",
-        "Sep",
-        "Oct",
-        "Nov",
-        "Dec",
-      ];
+      final months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
       return "${date.day} ${months[date.month - 1]}";
     } catch (e) {
       return "";
     }
   }
 
+  Widget _buildHeader(String dateRange) {
+    // SỬA Ở ĐÂY: Kiểm tra trạng thái InProgress từ DB (Loại bỏ khoảng trắng/dấu gạch dưới cho an toàn)
+    String currentStatus = widget.sprint.status?.replaceAll('_', '').toUpperCase() ?? '';
+    bool isSprintActive = currentStatus == 'INPROGRESS';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: const BoxDecoration(
+        color: Color(0xFFFAFBFC),
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(8),
+          topRight: Radius.circular(8),
+        ),
+        border: Border(bottom: BorderSide(color: Color(0xFFEBECF0))),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.keyboard_arrow_down, size: 20, color: Color(0xFF42526E)),
+          const SizedBox(width: 8),
+          
+          Row(
+            children: [
+              Text(
+                widget.sprint.name,
+                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF172B4D)),
+              ),
+              if (isSprintActive) ...[
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: Colors.blue.shade200),
+                  ),
+                  child: Text(
+                    'IN PROGRESS',
+                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.blue.shade700),
+                  ),
+                ),
+              ],
+            ],
+          ),
+          
+          const SizedBox(width: 12),
+          if (dateRange.isNotEmpty)
+            Text(dateRange, style: const TextStyle(fontSize: 13, color: Color(0xFF5E6C84))),
+          const Spacer(),
+
+          ElevatedButton(
+            // Nếu đã InProgress -> Bấm vào thì view graph. Chưa thì Start
+            onPressed: isSprintActive 
+                ? () => widget.onSprintStarted(widget.sprint.id, widget.sprint.name)
+                : (_isStarting ? null : _handleStartSprint),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: isSprintActive ? const Color(0xFF0052CC) : const Color(0xFFF4F5F7),
+              foregroundColor: isSprintActive ? Colors.white : const Color(0xFF42526E),
+              elevation: 0,
+              side: BorderSide(color: isSprintActive ? Colors.transparent : const Color(0xFFDFE1E6)),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+              minimumSize: const Size(0, 32),
+            ),
+            child: _isStarting
+                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                : Text(
+                    isSprintActive ? 'View Graph' : 'Start sprint',
+                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                  ),
+          ),
+
+          IconButton(
+            icon: const Icon(Icons.more_horiz, size: 20, color: Color(0xFF42526E)),
+            onPressed: () {},
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     String dateRange = "";
     if (widget.sprint.startDate != null && widget.sprint.endDate != null) {
-      dateRange =
-          "${_formatDate(widget.sprint.startDate)} - ${_formatDate(widget.sprint.endDate)}";
+      dateRange = "${_formatDate(widget.sprint.startDate)} - ${_formatDate(widget.sprint.endDate)}";
     }
 
     return DragTarget<String>(
@@ -198,22 +257,13 @@ class _SprintContainerState extends State<SprintContainer> {
       },
       builder: (context, candidateData, rejectedData) {
         final isHovering = candidateData.isNotEmpty;
-
         return Container(
           margin: const EdgeInsets.only(bottom: 24),
           decoration: BoxDecoration(
             color: isHovering ? const Color(0xFFE3FCEF) : Colors.white,
             borderRadius: BorderRadius.circular(8),
-            border: isHovering
-                ? Border.all(color: Colors.green, width: 2)
-                : null,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.06),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
+            border: isHovering ? Border.all(color: Colors.green, width: 2) : null,
+            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 8, offset: const Offset(0, 2))],
           ),
           child: Column(
             children: [
@@ -222,52 +272,25 @@ class _SprintContainerState extends State<SprintContainer> {
                 future: _storiesFuture,
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Padding(
-                      padding: EdgeInsets.all(20),
-                      child: Center(
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                    );
+                    return const Padding(padding: EdgeInsets.all(20), child: Center(child: CircularProgressIndicator(strokeWidth: 2)));
                   }
                   final stories = snapshot.data ?? [];
                   if (stories.isEmpty) {
                     return Container(
-                      padding: const EdgeInsets.all(20),
-                      alignment: Alignment.center,
-                      child: const Text(
-                        "Plan a sprint by dragging work items into it.",
-                        style: TextStyle(
-                          color: Color(0xFFC1C7D0),
-                          fontStyle: FontStyle.italic,
-                          fontSize: 13,
-                        ),
-                      ),
+                      padding: const EdgeInsets.all(20), alignment: Alignment.center,
+                      child: const Text("Plan a sprint by dragging work items into it.", style: TextStyle(color: Color(0xFFC1C7D0), fontStyle: FontStyle.italic, fontSize: 13)),
                     );
                   }
                   return ListView.separated(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
+                    shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
                     itemCount: stories.length,
-                    separatorBuilder: (context, index) =>
-                        const Divider(height: 1, color: Color(0xFFEBECF0)),
+                    separatorBuilder: (context, index) => const Divider(height: 1, color: Color(0xFFEBECF0)),
                     itemBuilder: (context, index) {
                       final story = stories[index];
                       return Draggable<String>(
                         data: story.id,
-                        feedback: Material(
-                          elevation: 4,
-                          borderRadius: BorderRadius.circular(4),
-                          child: Container(
-                            width: 300,
-                            padding: const EdgeInsets.all(12),
-                            color: Colors.white,
-                            child: Text(story.storyText),
-                          ),
-                        ),
-                        childWhenDragging: Opacity(
-                          opacity: 0.3,
-                          child: _buildSprintTaskItem(story),
-                        ),
+                        feedback: Material(elevation: 4, borderRadius: BorderRadius.circular(4), child: Container(width: 300, padding: const EdgeInsets.all(12), color: Colors.white, child: Text(story.storyText))),
+                        childWhenDragging: Opacity(opacity: 0.3, child: _buildSprintTaskItem(story)),
                         child: _buildSprintTaskItem(story),
                       );
                     },
@@ -275,23 +298,9 @@ class _SprintContainerState extends State<SprintContainer> {
                 },
               ),
               Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(
-                  vertical: 8,
-                  horizontal: 16,
-                ),
-                decoration: const BoxDecoration(
-                  color: Color(0xFFFAFBFC),
-                  borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.circular(8),
-                    bottomRight: Radius.circular(8),
-                  ),
-                ),
-                child: const Icon(
-                  Icons.add,
-                  color: Colors.transparent,
-                  size: 20,
-                ),
+                width: double.infinity, padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                decoration: const BoxDecoration(color: Color(0xFFFAFBFC), borderRadius: BorderRadius.only(bottomLeft: Radius.circular(8), bottomRight: Radius.circular(8))),
+                child: const Icon(Icons.add, color: Colors.transparent, size: 20),
               ),
             ],
           ),
@@ -306,114 +315,14 @@ class _SprintContainerState extends State<SprintContainer> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Row(
         children: [
-          const Icon(
-            Icons.check_box_outline_blank,
-            size: 18,
-            color: Color(0xFFDFE1E6),
-          ),
+          const Icon(Icons.check_box_outline_blank, size: 18, color: Color(0xFFDFE1E6)),
           const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              story.storyText,
-              style: const TextStyle(fontSize: 14, color: Color(0xFF172B4D)),
-            ),
-          ),
+          Expanded(child: Text(story.storyText, style: const TextStyle(fontSize: 14, color: Color(0xFF172B4D)))),
           const SizedBox(width: 8),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-            decoration: BoxDecoration(
-              color: const Color(0xFFDFE1E6),
-              borderRadius: BorderRadius.circular(3),
-            ),
-            child: Text(
-              story.status.toUpperCase(),
-              style: const TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF42526E),
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          const CircleAvatar(
-            radius: 10,
-            backgroundColor: Color(0xFF0052CC),
-            child: Text(
-              "Q",
-              style: TextStyle(fontSize: 10, color: Colors.white),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHeader(String dateRange) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: const BoxDecoration(
-        color: Color(0xFFFAFBFC),
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(8),
-          topRight: Radius.circular(8),
-        ),
-        border: Border(bottom: BorderSide(color: Color(0xFFEBECF0))),
-      ),
-      child: Row(
-        children: [
-          const Icon(
-            Icons.keyboard_arrow_down,
-            size: 20,
-            color: Color(0xFF42526E),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            widget.sprint.name,
-            style: const TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF172B4D),
-            ),
-          ),
-          const SizedBox(width: 12),
-          if (dateRange.isNotEmpty)
-            Text(
-              dateRange,
-              style: const TextStyle(fontSize: 13, color: Color(0xFF5E6C84)),
-            ),
-          const Spacer(),
-
-          ElevatedButton(
-            onPressed: _isStarting
-                ? null
-                : _handleStartSprint,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFF4F5F7),
-              foregroundColor: const Color(0xFF42526E),
-              elevation: 0,
-              side: const BorderSide(color: Color(0xFFDFE1E6)),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
-              minimumSize: const Size(0, 32),
-            ),
-            child: _isStarting
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Text(
-                    'Start sprint',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                  ),
-          ),
-
-          IconButton(
-            icon: const Icon(
-              Icons.more_horiz,
-              size: 20,
-              color: Color(0xFF42526E),
-            ),
-            onPressed: () {},
+            decoration: BoxDecoration(color: const Color(0xFFDFE1E6), borderRadius: BorderRadius.circular(3)),
+            child: Text(story.status.toUpperCase(), style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF42526E))),
           ),
         ],
       ),

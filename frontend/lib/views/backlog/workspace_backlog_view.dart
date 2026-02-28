@@ -1,10 +1,13 @@
+// lib/views/backlog/workspace_backlog_view.dart
 import 'package:flutter/material.dart';
 import '../../models/home/workspace_model.dart';
+import '../../models/backlog/sprint_model.dart';
 import '../../viewmodels/backlog/backlog_view_model.dart';
 import '../../services/backlog/sprint_service.dart';
 import '../../components/home/workspace_header.dart';
 import '../../components/home/sprint_section.dart';
 import '../../components/home/backlog_section.dart';
+import '../../components/home/backlog_graph_screen.dart'; 
 import '../../components/home/sprint_graph_screen.dart';
 
 class WorkspaceBacklogView extends StatefulWidget {
@@ -25,8 +28,10 @@ class _WorkspaceBacklogViewState extends State<WorkspaceBacklogView> {
   final FocusNode _sprintInputFocusNode = FocusNode();
 
   String _activeTab = 'Backlog';
-
   bool _isGraphHovered = false;
+
+  String? _activeSprintId;
+  String? _activeSprintName;
 
   @override
   void initState() {
@@ -56,14 +61,14 @@ class _WorkspaceBacklogViewState extends State<WorkspaceBacklogView> {
         _sprintInputController.clear();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('User story created successfully!'),
+            content: Text('User story created!'),
             backgroundColor: Colors.green,
           ),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Failed to create user story'),
+            content: Text('Failed to create'),
             backgroundColor: Colors.red,
           ),
         );
@@ -76,28 +81,25 @@ class _WorkspaceBacklogViewState extends State<WorkspaceBacklogView> {
       sprintId: sprintId,
       userStoryId: storyId,
     );
-
     if (success) {
-      if (mounted) {
+      if (mounted)
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Moved story to sprint successfully!'),
+            content: Text('Moved story to sprint!'),
             backgroundColor: Colors.green,
             duration: Duration(milliseconds: 700),
           ),
         );
-      }
       _viewModel.fetchBacklog(widget.workspace.id);
       _viewModel.fetchSprints(widget.workspace.id);
     } else {
-      if (mounted) {
+      if (mounted)
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Failed to move story'),
+            content: Text('Failed to move'),
             backgroundColor: Colors.red,
           ),
         );
-      }
     }
   }
 
@@ -110,14 +112,12 @@ class _WorkspaceBacklogViewState extends State<WorkspaceBacklogView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SizedBox(
-            height: 24,
-          ),
+          const SizedBox(height: 24),
           MouseRegion(
             onEnter: (_) => setState(() => _isGraphHovered = true),
             onExit: (_) => setState(() => _isGraphHovered = false),
             child: Container(
-              height: 500, // Chiều cao đồ thị
+              height: 500,
               clipBehavior: Clip.hardEdge,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(8),
@@ -129,25 +129,30 @@ class _WorkspaceBacklogViewState extends State<WorkspaceBacklogView> {
                   ),
                 ],
               ),
-              child: SprintGraphScreen(
-                sprintId: widget.workspace.backlog?.id ?? "",
-                sprintName: widget.workspace.backlog?.name ?? "",
+              child: BacklogGraphScreen(
+                // Giữ nguyên BacklogGraphScreen ở đây
+                backlogId: widget.workspace.backlog?.id ?? "",
+                backlogName: widget.workspace.backlog?.name ?? "",
               ),
             ),
           ),
-
           const SizedBox(height: 24),
-
           if (_viewModel.sprintList.isNotEmpty) ...[
             SprintSection(
               controller: _sprintInputController,
               onCreateStory: _handleCreateStory,
               sprints: _viewModel.sprintList,
               onMoveStoryToSprint: _handleMoveStoryToSprint,
+              onSprintStarted: (sprintId, sprintName) {
+                setState(() {
+                  _activeSprintId = sprintId;
+                  _activeSprintName = sprintName;
+                  _activeTab = 'Graph';
+                });
+              },
             ),
             const SizedBox(height: 24),
           ],
-
           BacklogSection(
             onCreateStory: _handleCreateStory,
             backlogList: _viewModel.backlogList,
@@ -163,6 +168,37 @@ class _WorkspaceBacklogViewState extends State<WorkspaceBacklogView> {
     switch (_activeTab) {
       case 'Backlog':
         return _buildBacklogTab();
+
+      case 'Graph':
+        // TỰ ĐỘNG TÌM SPRINT ĐANG INPROGRESS (Nếu lỡ F5 web mất _activeSprintId)
+        SprintModel? autoDetectedSprint;
+        try {
+          autoDetectedSprint = _viewModel.sprintList.firstWhere(
+            (s) => s.status?.replaceAll('_', '').toUpperCase() == 'INPROGRESS',
+          );
+        } catch (e) {
+          autoDetectedSprint = null;
+        }
+
+        final displaySprintId = _activeSprintId ?? autoDetectedSprint?.id;
+        final displaySprintName = _activeSprintName ?? autoDetectedSprint?.name;
+
+        if (displaySprintId != null && displaySprintName != null) {
+          // GỌI GRAPHQL SPRINT GRAPH (sprint_graph_screen.dart)
+          return SprintGraphScreen(
+            sprintId: displaySprintId,
+            sprintName: displaySprintName,
+          );
+        } else {
+          return const Center(
+            child: Text(
+              'Chưa có Sprint nào đang In Progress.\nVui lòng Start một Sprint từ tab Backlog để xem đồ thị.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey, fontSize: 16),
+            ),
+          );
+        }
+
       default:
         return Center(
           child: Text(
@@ -191,6 +227,9 @@ class _WorkspaceBacklogViewState extends State<WorkspaceBacklogView> {
                     });
                     if (tab == 'Backlog') {
                       _viewModel.fetchBacklog(widget.workspace.id);
+                      _viewModel.fetchSprints(
+                        widget.workspace.id,
+                      ); // Nên fetch lại sprint list luôn
                     }
                   },
                 ),

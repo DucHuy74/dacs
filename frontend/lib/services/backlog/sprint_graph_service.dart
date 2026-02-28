@@ -1,62 +1,68 @@
-import 'package:graphql_flutter/graphql_flutter.dart';
+// lib/services/backlog/sprint_graph_service.dart
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../auth/auth_service.dart';
-import 'package:flutter/foundation.dart'; 
-import 'dart:io'; 
+import 'package:flutter/foundation.dart';
+import 'dart:io';
 
 class SprintGraphService {
-  Future<GraphQLClient> _getClient() async {
+  Future<Map<String, dynamic>?> fetchSprintGraph(String sprintId) async {
     final token = await AuthService.instance.getValidAccessToken();
-    
-    String url;
+
+    String baseUrl;
     if (kIsWeb) {
-      url = 'http://localhost:8080/api/graphql';
+      baseUrl = 'http://localhost:8080';
     } else if (Platform.isAndroid) {
-      url = 'http://localhost:8080/api/graphql'; 
+      baseUrl = 'http://10.0.2.2:8080';
     } else {
-      url = 'http://localhost:8080/api/graphql'; 
+      baseUrl = 'http://localhost:8080';
     }
 
+    // ĐƯỜNG DẪN MỚI CỦA BẠN (REST GET)
+    final url = Uri.parse('$baseUrl/api/graph/sprint/$sprintId');
+    
     print("Connecting to Graph API: $url");
 
-    final HttpLink httpLink = HttpLink(
-      url,
-      defaultHeaders: {
-        'Authorization': 'Bearer $token',
-        'x-api-key': dotenv.env['API_KEY'] ?? '',
-        'Access-Control-Allow-Origin': '*',
-      },
-    );
+    try {
+      final response = await http.get(
+        url,
+        headers: {
+          'Content-Type': 'application/json; charset=UTF-8',
+          'Authorization': 'Bearer $token',
+          'x-api-key': dotenv.env['API_KEY'] ?? '',
+          'Access-Control-Allow-Origin': '*',
+        },
+      );
 
-    return GraphQLClient(cache: GraphQLCache(), link: httpLink);
-  }
+      if (response.statusCode == 200) {
+        final body = jsonDecode(response.body);
+        print("Graph Data Response: $body");
 
-  Future<Map<String, dynamic>?> fetchSprintGraph(String sprintId) async {
-    final client = await _getClient();
-
-    const String query = r'''
-      query getSprintGraph($id: ID!) {
-        sprintGraph(sprintId: $id) {
-          nodes { id type }
-          edges { from to type }
-        }
+        // Xử lý các kiểu bọc (wrapper) trả về từ Backend của bạn
+        // Nếu Backend trả về chuẩn chung có dạng { "code": 1000, "result": { "sprintGraph": {...} } }
+        if (body['code'] == 1000 && body['result'] != null) {
+          if (body['result']['sprintGraph'] != null) {
+            return body['result']['sprintGraph'];
+          }
+          return body['result']; // Đề phòng trường hợp result chính là object chứa nodes/edges
+        } 
+        
+        // Nếu Backend trả về trực tiếp { "sprintGraph": { "nodes": [], "edges": [] } }
+        else if (body['sprintGraph'] != null) {
+          return body['sprintGraph'];
+        } 
+        
+        // Nếu Backend trả thẳng object { "nodes": [], "edges": [] }
+        return body; 
+        
+      } else {
+        print("Graph Error: ${response.statusCode} - ${response.body}");
+        return null;
       }
-    ''';
-    final QueryOptions options = QueryOptions(
-      document: gql(query),
-      variables: {'id': sprintId},
-      fetchPolicy: FetchPolicy.networkOnly,
-    );
-
-    final result = await client.query(options);
-
-    if (result.hasException) {
-      print("Graph Error: ${result.exception.toString()}");
+    } catch (e) {
+      print("Exception fetchSprintGraph: $e");
       return null;
     }
-
-    print("Graph Data: ${result.data?['sprintGraph']}");
-
-    return result.data?['sprintGraph'];
   }
 }

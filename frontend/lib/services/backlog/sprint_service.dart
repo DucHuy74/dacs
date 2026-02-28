@@ -8,7 +8,7 @@ import '../../models/backlog/user_story_model.dart';
 class SprintService {
   static const String _baseUrl = 'http://localhost:8080/api';
 
-  // --- Hàm mới: Lấy danh sách Sprint ---
+  // --- Lấy danh sách Sprint ---
   Future<List<SprintModel>> getSprints(String workspaceId) async {
     final url = Uri.parse('$_baseUrl/sprints/workspace/$workspaceId');
 
@@ -41,7 +41,7 @@ class SprintService {
     }
   }
   
-  // --- Hàm mới: Tạo Sprint ---
+  // --- Tạo Sprint ---
   Future<bool> createSprint({
     required String workspaceId,
     required String name,
@@ -85,7 +85,7 @@ class SprintService {
     }
   }
 
-  // --- Hàm mới: Thêm User Story vào Sprint ---
+  // --- Thêm User Story vào Sprint ---
   Future<bool> addStoryToSprint({
     required String sprintId,
     required String userStoryId,
@@ -119,7 +119,7 @@ class SprintService {
     }
   }
 
-  // --- Hàm mới: Lấy danh sách User Stories trong Sprint ---
+  // --- Lấy danh sách User Stories trong Sprint ---
   Future<List<UserStoryModel>> getStoriesInSprint(String sprintId) async {
     final url = Uri.parse('$_baseUrl/sprints/$sprintId/user-stories');
 
@@ -149,7 +149,7 @@ class SprintService {
     }
   }
 
-  // --- Hàm mới: Start Sprint ---
+  // --- Start Sprint ---
   Future<bool> startSprint(String sprintId) async {
     final url = Uri.parse('$_baseUrl/sprints/$sprintId/start');
 
@@ -174,6 +174,41 @@ class SprintService {
       }
     } catch (e) {
       print('Exception Start Sprint: $e');
+      return false;
+    }
+  }
+
+  // --- Complete Sprint ---
+  Future<bool> completeSprint(String sprintId) async {
+    final url = Uri.parse('$_baseUrl/sprints/$sprintId/complete');
+
+    try {
+      final token = await AuthService.instance.getValidAccessToken();
+      
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json; charset=UTF-8',
+          'Authorization': 'Bearer $token',
+          'x-api-key': dotenv.env['API_KEY'] ?? '',
+        },
+      );
+
+      // Kiểm tra thành công
+      if (response.statusCode == 200) {
+        final body = jsonDecode(response.body);
+        if (body['code'] == 1000) {
+           return true;
+        } else {
+           print('Complete Sprint Failed: Code is not 1000. Response: ${response.body}');
+           return false;
+        }
+      } else {
+        print('Complete Sprint Error: Status ${response.statusCode} - ${response.body}');
+        return false;
+      }
+    } catch (e) {
+      print('Exception Complete Sprint: $e');
       return false;
     }
   }
