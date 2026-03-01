@@ -10,6 +10,19 @@ class TaskFlowMainContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
+    final titleColor = isDarkMode ? const Color(0xFFB6C2CF) : const Color(0xFF172B4D);
+    final subtitleColor = isDarkMode ? const Color(0xFF8C9BAB) : const Color(0xFF5E6C84);
+    
+    final btnBgColor = isDarkMode ? const Color(0xFF579DFF) : const Color(0xFF0052CC);
+    final btnTextColor = isDarkMode ? const Color(0xFF1D2125) : Colors.white;
+    final linkColor = isDarkMode ? const Color(0xFF579DFF) : const Color(0xFF0052CC);
+
+    final lockIconColor = isDarkMode ? const Color(0xFF1D2125) : const Color(0xFF172B4D);
+    final keyBgColor = isDarkMode ? const Color(0xFF579DFF) : const Color(0xFF0052CC);
+    final keyIconColor = isDarkMode ? const Color(0xFF1D2125) : Colors.white;
+
     return Center(
       child: Container(
         constraints: const BoxConstraints(maxWidth: 600),
@@ -24,14 +37,14 @@ class TaskFlowMainContent extends StatelessWidget {
                   width: 120,
                   height: 120,
                   decoration: const BoxDecoration(
-                    color: Color(0xFFFFC400),
+                    color: Color(0xFFFFC400), // Màu vàng của Jira giữ nguyên vì nó nổi trên cả 2 nền
                     shape: BoxShape.circle,
                   ),
                 ),
-                const Icon(
+                Icon(
                   Icons.lock_outline,
                   size: 60,
-                  color: Color(0xFF172B4D),
+                  color: lockIconColor, // Đổi màu icon ổ khóa
                 ),
                 Positioned(
                   right: 15,
@@ -39,35 +52,35 @@ class TaskFlowMainContent extends StatelessWidget {
                   child: Container(
                     width: 32,
                     height: 32,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFF0052CC),
+                    decoration: BoxDecoration(
+                      color: keyBgColor, // Đổi màu nền chìa khóa
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.vpn_key,
                       size: 18,
-                      color: Colors.white,
+                      color: keyIconColor, // Đổi màu icon chìa khóa
                     ),
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 32),
-            const Text(
+            Text(
               'Space not found',
               style: TextStyle(
                 fontSize: 28,
                 fontWeight: FontWeight.w600,
-                color: Color(0xFF172B4D),
+                color: titleColor, // Đổi màu tiêu đề
               ),
             ),
             const SizedBox(height: 16),
-            const Text(
+            Text(
               'You tried to access a space that doesn\'t exist, or that you don\'t have permission to access. Speak to your TaskFlow admin or space admin to get access.',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 16,
-                color: Color(0xFF5E6C84),
+                color: subtitleColor, // Đổi màu nội dung chữ
                 height: 1.5,
               ),
             ),
@@ -75,8 +88,8 @@ class TaskFlowMainContent extends StatelessWidget {
             ElevatedButton(
               onPressed: onCreate,
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF0052CC),
-                foregroundColor: Colors.white,
+                backgroundColor: btnBgColor, // Nền nút
+                foregroundColor: btnTextColor, // Chữ của nút
                 padding: const EdgeInsets.symmetric(
                   horizontal: 32,
                   vertical: 14,
@@ -94,10 +107,10 @@ class TaskFlowMainContent extends StatelessWidget {
             const SizedBox(height: 16),
             TextButton(
               onPressed: () {},
-              child: const Text(
+              child: Text(
                 'Go back to home',
                 style: TextStyle(
-                  color: Color(0xFF0052CC),
+                  color: linkColor, // Đổi màu chữ link
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
                 ),

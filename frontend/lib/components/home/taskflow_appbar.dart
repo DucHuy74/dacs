@@ -3,8 +3,8 @@ import '../../services/auth/auth_service.dart';
 import 'package:frontend/auth/auth_gate.dart';
 import '../../views/home/home_page.dart';
 import 'notification_popup.dart';
-import '../../models/home/user_profile_model.dart';
 import '../../views/home/profile_view.dart';
+import '../../main.dart';
 
 class TaskFlowAppBar extends StatelessWidget implements PreferredSizeWidget {
   final bool isMobile;
@@ -48,8 +48,21 @@ class TaskFlowAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
+    final appBarColor = isDarkMode
+        ? const Color(0xFF1D2125)
+        : const Color(0xFF0052CC);
+    final searchBgColor = isDarkMode
+        ? const Color(0xFF22272B)
+        : const Color(0xFF0747A6);
+    final createBtnBg = isDarkMode ? const Color(0xFF579DFF) : Colors.white;
+    final createBtnText = isDarkMode
+        ? const Color(0xFF1D2125)
+        : const Color(0xFF0052CC);
+
     return AppBar(
-      backgroundColor: const Color(0xFF0052CC),
+      backgroundColor: appBarColor, 
       elevation: 0,
       leading: isMobile
           ? null
@@ -57,12 +70,14 @@ class TaskFlowAppBar extends StatelessWidget implements PreferredSizeWidget {
               padding: const EdgeInsets.all(12),
               child: Container(
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: isDarkMode ? const Color(0xFF2C333A) : Colors.white,
                   borderRadius: BorderRadius.circular(4),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.dashboard,
-                  color: Color(0xFF0052CC),
+                  color: isDarkMode
+                      ? const Color(0xFF579DFF)
+                      : const Color(0xFF0052CC),
                   size: 20,
                 ),
               ),
@@ -83,8 +98,13 @@ class TaskFlowAppBar extends StatelessWidget implements PreferredSizeWidget {
             child: Container(
               height: 36,
               decoration: BoxDecoration(
-                color: const Color(0xFF0747A6),
+                color: searchBgColor, 
                 borderRadius: BorderRadius.circular(4),
+                border: isDarkMode
+                    ? Border.all(
+                        color: const Color(0xFF738496).withOpacity(0.3),
+                      )
+                    : null,
               ),
               child: TextField(
                 textAlignVertical: TextAlignVertical.center,
@@ -115,8 +135,8 @@ class TaskFlowAppBar extends StatelessWidget implements PreferredSizeWidget {
           icon: const Icon(Icons.add, size: 18),
           label: const Text('Create', style: TextStyle(fontSize: 14)),
           style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.white,
-            foregroundColor: const Color(0xFF0052CC),
+            backgroundColor: createBtnBg,
+            foregroundColor: createBtnText,
             elevation: 0,
             padding: const EdgeInsets.symmetric(horizontal: 16),
             shape: RoundedRectangleBorder(
@@ -125,12 +145,10 @@ class TaskFlowAppBar extends StatelessWidget implements PreferredSizeWidget {
           ),
         ),
         const SizedBox(width: 12),
-
         IconButton(
           icon: const Icon(Icons.notifications_outlined, color: Colors.white),
           onPressed: () => _showNotificationMenu(context),
         ),
-
         IconButton(
           icon: const Icon(Icons.help_outline, color: Colors.white),
           onPressed: () {},
@@ -140,12 +158,14 @@ class TaskFlowAppBar extends StatelessWidget implements PreferredSizeWidget {
           onPressed: () {},
         ),
         const SizedBox(width: 8),
-        _buildUserMenu(context),
+        _buildUserMenu(context, isDarkMode),
       ],
     );
   }
 
-  Widget _buildUserMenu(BuildContext context) {
+  Widget _buildUserMenu(BuildContext context, bool isDarkMode) {
+    final menuIconColor = isDarkMode ? Colors.white70 : const Color(0xFF172B4D);
+
     return PopupMenuButton<int>(
       offset: const Offset(0, 48),
       child: Padding(
@@ -165,6 +185,8 @@ class TaskFlowAppBar extends StatelessWidget implements PreferredSizeWidget {
             context,
           ).push(MaterialPageRoute(builder: (context) => const ProfilePage()));
         } else if (value == 1) {
+          _showThemeDialog(context);
+        } else if (value == 2) {
           final confirmed = await showDialog<bool>(
             context: context,
             builder: (ctx) => AlertDialog(
@@ -197,27 +219,77 @@ class TaskFlowAppBar extends StatelessWidget implements PreferredSizeWidget {
         }
       },
       itemBuilder: (context) => [
-        const PopupMenuItem<int>(
+        PopupMenuItem<int>(
           value: 0,
           child: Row(
             children: [
-              Icon(Icons.person, color: Color(0xFF172B4D)),
-              SizedBox(width: 8),
-              Text('My Profile'),
+              Icon(Icons.person_outline, color: menuIconColor),
+              const SizedBox(width: 8),
+              const Text('My Profile'),
             ],
           ),
         ),
-        const PopupMenuItem<int>(
+        PopupMenuItem<int>(
           value: 1,
           child: Row(
             children: [
-              Icon(Icons.logout, color: Color(0xFF172B4D)),
-              SizedBox(width: 8),
-              Text('Logout'),
+              Icon(Icons.contrast, color: menuIconColor),
+              const SizedBox(width: 8),
+              const Text('Theme'),
+            ],
+          ),
+        ),
+        const PopupMenuDivider(),
+        PopupMenuItem<int>(
+          value: 2,
+          child: Row(
+            children: [
+              Icon(Icons.logout, color: menuIconColor),
+              const SizedBox(width: 8),
+              const Text('Logout'),
             ],
           ),
         ),
       ],
+    );
+  }
+
+  void _showThemeDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text(
+            'Select Theme',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          contentPadding: const EdgeInsets.symmetric(vertical: 8),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.light_mode_outlined),
+                title: const Text('Light'),
+                onTap: () {
+                  themeNotifier.value = ThemeMode.light; 
+                  Navigator.pop(dialogContext);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.dark_mode_outlined),
+                title: const Text('Dark'),
+                onTap: () {
+                  themeNotifier.value = ThemeMode.dark; 
+                  Navigator.pop(dialogContext);
+                },
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

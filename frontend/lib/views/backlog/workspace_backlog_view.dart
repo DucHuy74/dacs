@@ -7,7 +7,7 @@ import '../../services/backlog/sprint_service.dart';
 import '../../components/home/workspace_header.dart';
 import '../../components/home/sprint_section.dart';
 import '../../components/home/backlog_section.dart';
-import '../../components/home/backlog_graph_screen.dart'; 
+import '../../components/home/backlog_graph_screen.dart';
 import '../../components/home/sprint_graph_screen.dart';
 
 class WorkspaceBacklogView extends StatefulWidget {

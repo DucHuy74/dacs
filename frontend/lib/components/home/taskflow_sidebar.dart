@@ -33,24 +33,30 @@ class TaskFlowSidebar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
+    final bgColor = isDarkMode ? const Color(0xFF1D2125) : const Color(0xFFFAFBFC);
+    final borderColor = isDarkMode ? const Color(0xFF38414A) : Colors.grey.shade200;
+    final sectionTitleColor = isDarkMode ? const Color(0xFF8C9BAB) : const Color(0xFF5E6C84);
+
     return Container(
       width: 240,
       decoration: BoxDecoration(
-        color: const Color(0xFFFAFBFC),
-        border: Border(right: BorderSide(color: Colors.grey.shade200)),
+        color: bgColor,
+        border: Border(right: BorderSide(color: borderColor)),
       ),
       child: ListView(
         padding: const EdgeInsets.symmetric(vertical: 12),
         children: [
-          _buildMenuItem('For you', Icons.person_outline, true),
-          _buildMenuItem('Recent', Icons.access_time, true),
-          _buildMenuItem('Starred', Icons.star_border, true),
-          _buildMenuItem('Apps', Icons.apps, true),
-          _buildMenuItem('Plans', Icons.calendar_today_outlined, true),
+          _buildMenuItem('For you', Icons.person_outline, true, isDarkMode: isDarkMode),
+          _buildMenuItem('Recent', Icons.access_time, true, isDarkMode: isDarkMode),
+          _buildMenuItem('Starred', Icons.star_border, true, isDarkMode: isDarkMode),
+          _buildMenuItem('Apps', Icons.apps, true, isDarkMode: isDarkMode),
+          _buildMenuItem('Plans', Icons.calendar_today_outlined, true, isDarkMode: isDarkMode),
 
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Divider(height: 1),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Divider(height: 1, color: borderColor),
           ),
 
           Padding(
@@ -58,16 +64,16 @@ class TaskFlowSidebar extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
+                Text(
                   'Spaces',
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF5E6C84),
+                    color: sectionTitleColor,
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.add, size: 18),
+                  icon: Icon(Icons.add, size: 18, color: sectionTitleColor),
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
                   onPressed: onCreate,
@@ -77,41 +83,41 @@ class TaskFlowSidebar extends StatelessWidget {
           ),
 
           if (workspaces.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
               child: Text(
                 "No workspaces found",
                 style: TextStyle(
                   fontSize: 13,
-                  color: Colors.grey,
+                  color: isDarkMode ? const Color(0xFF8C9BAB) : Colors.grey,
                   fontStyle: FontStyle.italic,
                 ),
               ),
             )
           else
-            ...workspaces.map((ws) => _buildWorkspaceItem(ws)).toList(),
+            ...workspaces.map((ws) => _buildWorkspaceItem(ws, isDarkMode)).toList(),
 
-          // --- MENU DƯỚI ---
           _buildMenuItem(
             'More spaces',
             Icons.chevron_right,
             true,
             indent: true,
+            isDarkMode: isDarkMode,
           ),
 
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Divider(height: 1),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Divider(height: 1, color: borderColor),
           ),
 
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Text(
               'Recommended',
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: Color(0xFF5E6C84),
+                color: sectionTitleColor,
               ),
             ),
           ),
@@ -121,26 +127,29 @@ class TaskFlowSidebar extends StatelessWidget {
             true,
             badge: 'TRY',
             indent: true,
+            isDarkMode: isDarkMode,
           ),
-          _buildMenuItem('Filters', Icons.filter_list, true, indent: true),
-          _buildMenuItem('Dashboards', Icons.dashboard, true, indent: true),
+          _buildMenuItem('Filters', Icons.filter_list, true, indent: true, isDarkMode: isDarkMode),
+          _buildMenuItem('Dashboards', Icons.dashboard, true, indent: true, isDarkMode: isDarkMode),
           _buildMenuItem(
             'Operations',
             Icons.build_outlined,
             true,
             indent: true,
+            isDarkMode: isDarkMode,
           ),
-          _buildMenuItem('Customers', Icons.people_outline, true, indent: true),
+          _buildMenuItem('Customers', Icons.people_outline, true, indent: true, isDarkMode: isDarkMode),
           _buildMenuItem(
             'Customer experiences',
             Icons.headset_mic_outlined,
             true,
             indent: true,
+            isDarkMode: isDarkMode,
           ),
 
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Divider(height: 1),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Divider(height: 1, color: borderColor),
           ),
 
           _buildMenuItem(
@@ -149,6 +158,7 @@ class TaskFlowSidebar extends StatelessWidget {
             true,
             external: true,
             indent: true,
+            isDarkMode: isDarkMode,
           ),
           _buildMenuItem(
             'Teams',
@@ -156,20 +166,26 @@ class TaskFlowSidebar extends StatelessWidget {
             true,
             external: true,
             indent: true,
+            isDarkMode: isDarkMode,
           ),
           _buildMenuItem(
             'Give feedback on the new...',
             Icons.feedback_outlined,
             true,
             indent: true,
+            isDarkMode: isDarkMode,
           ),
         ],
       ),
     );
   }
 
-  Widget _buildWorkspaceItem(WorkspaceModel ws) {
-    final isSelected = selectedMenu == ws.name; // So sánh tên để highlight
+  Widget _buildWorkspaceItem(WorkspaceModel ws, bool isDarkMode) {
+    final isSelected = selectedMenu == ws.name; 
+    
+    final selectedColor = isDarkMode ? const Color(0xFF579DFF) : const Color(0xFF0052CC);
+    final unselectedTextColor = isDarkMode ? const Color(0xFFB6C2CF) : const Color(0xFF172B4D);
+    final selectedTileBg = isDarkMode ? const Color(0xFF1C2B41) : const Color(0xFFDEEBFF);
 
     return Container(
       margin: const EdgeInsets.only(left: 12),
@@ -187,7 +203,7 @@ class TaskFlowSidebar extends StatelessWidget {
           child: Text(
             _getInitials(ws.name),
             style: const TextStyle(
-              color: Colors.white,
+              color: Colors.white, // Avatar text luôn trắng cho nổi
               fontSize: 11,
               fontWeight: FontWeight.bold,
             ),
@@ -197,16 +213,13 @@ class TaskFlowSidebar extends StatelessWidget {
           ws.name,
           style: TextStyle(
             fontSize: 14,
-            color: isSelected
-                ? const Color(0xFF0052CC)
-                : const Color(0xFF172B4D),
+            color: isSelected ? selectedColor : unselectedTextColor,
             fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
           ),
           overflow: TextOverflow.ellipsis,
         ),
         selected: isSelected,
-        selectedTileColor: const Color(0xFFDEEBFF),
-
+        selectedTileColor: selectedTileBg,
         onTap: () => onMenuSelected(ws.name),
       ),
     );
@@ -219,8 +232,15 @@ class TaskFlowSidebar extends StatelessWidget {
     bool indent = false,
     String? badge,
     bool external = false,
+    required bool isDarkMode, // Bắt buộc truyền vào
   }) {
     final isSelected = selectedMenu == title;
+    
+    final selectedColor = isDarkMode ? const Color(0xFF579DFF) : const Color(0xFF0052CC);
+    final unselectedIconColor = isDarkMode ? const Color(0xFF8C9BAB) : const Color(0xFF5E6C84);
+    final unselectedTextColor = isDarkMode ? const Color(0xFFB6C2CF) : const Color(0xFF172B4D);
+    final selectedTileBg = isDarkMode ? const Color(0xFF1C2B41) : const Color(0xFFDEEBFF);
+
     return Container(
       margin: EdgeInsets.only(left: indent ? 24 : 0),
       child: ListTile(
@@ -229,9 +249,7 @@ class TaskFlowSidebar extends StatelessWidget {
             ? Icon(
                 icon,
                 size: 20,
-                color: isSelected
-                    ? const Color(0xFF0052CC)
-                    : const Color(0xFF5E6C84),
+                color: isSelected ? selectedColor : unselectedIconColor,
               )
             : null,
         title: Row(
@@ -241,9 +259,7 @@ class TaskFlowSidebar extends StatelessWidget {
                 title,
                 style: TextStyle(
                   fontSize: 14,
-                  color: isSelected
-                      ? const Color(0xFF0052CC)
-                      : const Color(0xFF172B4D),
+                  color: isSelected ? selectedColor : unselectedTextColor,
                   fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
                 ),
               ),
@@ -252,31 +268,31 @@ class TaskFlowSidebar extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF0052CC),
+                  color: selectedColor, // Nền badge thay đổi theo theme
                   borderRadius: BorderRadius.circular(3),
                 ),
                 child: Text(
                   badge,
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: isDarkMode ? const Color(0xFF1D2125) : Colors.white, // Chữ trong badge
                     fontSize: 10,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
             if (external)
-              const Icon(Icons.open_in_new, size: 14, color: Color(0xFF5E6C84)),
+               Icon(Icons.open_in_new, size: 14, color: unselectedIconColor),
           ],
         ),
         trailing: title == 'Recent' || title == 'Starred'
-            ? const Icon(
+            ? Icon(
                 Icons.chevron_right,
                 size: 18,
-                color: Color(0xFF5E6C84),
+                color: unselectedIconColor,
               )
             : null,
         selected: isSelected,
-        selectedTileColor: const Color(0xFFDEEBFF),
+        selectedTileColor: selectedTileBg,
         onTap: () => onMenuSelected(title),
       ),
     );
