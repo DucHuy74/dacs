@@ -87,8 +87,10 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     final isMobile = _isMobile(context);
 
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: isDarkMode ? const Color(0xFF22272B) : Colors.white,
 
       appBar: TaskFlowAppBar(isMobile: isMobile, onCreate: _showCreateDialog),
 

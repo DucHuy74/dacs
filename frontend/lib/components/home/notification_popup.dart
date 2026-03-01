@@ -50,7 +50,6 @@ class _NotificationPopupState extends State<NotificationPopup> {
       );
     });
 
-    // Gọi API nền
     final success = await _service.markAsRead(notif.id);
     if (!success) {
       print("Failed to mark as read for id: ${notif.id}");
@@ -90,22 +89,31 @@ class _NotificationPopupState extends State<NotificationPopup> {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
+    final bgColor = isDarkMode ? const Color(0xFF282E33) : Colors.white;
+    final borderColor = isDarkMode ? const Color(0xFF38414A) : Colors.grey.shade300;
+    final titleColor = isDarkMode ? const Color(0xFFB6C2CF) : const Color(0xFF172B4D);
+    final iconColor = isDarkMode ? const Color(0xFF8C9BAB) : const Color(0xFF42526E);
+    final dividerColor = isDarkMode ? const Color(0xFF38414A) : const Color(0xFFDFE1E6);
+    final activeBrandColor = isDarkMode ? const Color(0xFF579DFF) : const Color(0xFF0052CC);
+
     return Material(
       color: Colors.transparent,
       child: Container(
         width: 380,
         height: 500,
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: bgColor,
           borderRadius: BorderRadius.circular(4),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.15),
+              color: Colors.black.withOpacity(isDarkMode ? 0.5 : 0.15),
               blurRadius: 12,
               offset: const Offset(0, 4),
             ),
           ],
-          border: Border.all(color: Colors.grey.shade300),
+          border: Border.all(color: borderColor),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -115,42 +123,30 @@ class _NotificationPopupState extends State<NotificationPopup> {
               padding: const EdgeInsets.fromLTRB(20, 20, 16, 12),
               child: Row(
                 children: [
-                  const Text(
+                  Text(
                     'Notifications',
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w700,
-                      color: Color(0xFF172B4D),
+                      color: titleColor,
                     ),
                   ),
                   const Spacer(),
 
                   if (_notifications.isNotEmpty && _activeTab == 'Direct')
                     IconButton(
-                      icon: const Icon(
-                        Icons.done_all,
-                        size: 20,
-                        color: Color(0xFF42526E),
-                      ),
+                      icon: Icon(Icons.done_all, size: 20, color: iconColor),
                       onPressed: _markAllAsRead,
                       tooltip: 'Mark all as read',
                     ),
 
                   IconButton(
-                    icon: const Icon(
-                      Icons.open_in_new,
-                      size: 20,
-                      color: Color(0xFF42526E),
-                    ),
+                    icon: Icon(Icons.open_in_new, size: 20, color: iconColor),
                     onPressed: () {},
                     tooltip: 'Open in full page',
                   ),
                   IconButton(
-                    icon: const Icon(
-                      Icons.more_vert,
-                      size: 20,
-                      color: Color(0xFF42526E),
-                    ),
+                    icon: Icon(Icons.more_vert, size: 20, color: iconColor),
                     onPressed: () {},
                   ),
                 ],
@@ -162,30 +158,28 @@ class _NotificationPopupState extends State<NotificationPopup> {
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Row(
                 children: [
-                  _buildTab('Direct'),
+                  _buildTab('Direct', isDarkMode),
                   const SizedBox(width: 16),
-                  _buildTab('Watching'),
+                  _buildTab('Watching', isDarkMode),
                 ],
               ),
             ),
-            const Divider(height: 1, color: Color(0xFFDFE1E6)),
+            Divider(height: 1, color: dividerColor),
 
             // --- NỘI DUNG CHÍNH ---
             Expanded(
               child: _isLoading
-                  ? const Center(
+                  ? Center(
                       child: CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          Color(0xFF0052CC),
-                        ),
+                        valueColor: AlwaysStoppedAnimation<Color>(activeBrandColor),
                       ),
                     )
                   : _activeTab == 'Direct'
-                  ? _buildNotificationList()
-                  : const Center(
+                  ? _buildNotificationList(isDarkMode)
+                  : Center(
                       child: Text(
                         'No watching items',
-                        style: TextStyle(color: Color(0xFF5E6C84)),
+                        style: TextStyle(color: isDarkMode ? const Color(0xFF8C9BAB) : const Color(0xFF5E6C84)),
                       ),
                     ),
             ),
@@ -195,8 +189,11 @@ class _NotificationPopupState extends State<NotificationPopup> {
     );
   }
 
-  Widget _buildTab(String title) {
+  Widget _buildTab(String title, bool isDarkMode) {
     final isActive = _activeTab == title;
+    final activeColor = isDarkMode ? const Color(0xFF579DFF) : const Color(0xFF0052CC);
+    final inactiveColor = isDarkMode ? const Color(0xFF8C9BAB) : const Color(0xFF5E6C84);
+
     return GestureDetector(
       onTap: () => setState(() => _activeTab = title),
       child: Container(
@@ -204,7 +201,7 @@ class _NotificationPopupState extends State<NotificationPopup> {
         decoration: BoxDecoration(
           border: Border(
             bottom: BorderSide(
-              color: isActive ? const Color(0xFF0052CC) : Colors.transparent,
+              color: isActive ? activeColor : Colors.transparent,
               width: 2,
             ),
           ),
@@ -214,16 +211,20 @@ class _NotificationPopupState extends State<NotificationPopup> {
           style: TextStyle(
             fontSize: 14,
             fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
-            color: isActive ? const Color(0xFF0052CC) : const Color(0xFF5E6C84),
+            color: isActive ? activeColor : inactiveColor,
           ),
         ),
       ),
     );
   }
 
-  Widget _buildNotificationList() {
+  Widget _buildNotificationList(bool isDarkMode) {
+    final emptyTitleColor = isDarkMode ? const Color(0xFFB6C2CF) : const Color(0xFF172B4D);
+    final emptySubColor = isDarkMode ? const Color(0xFF8C9BAB) : const Color(0xFF5E6C84);
+    final unreadBgColor = isDarkMode ? const Color(0xFF1C2B41) : const Color(0xFFE9F2FF).withOpacity(0.5);
+    final unreadDotColor = isDarkMode ? const Color(0xFF579DFF) : const Color(0xFF0052CC);
+
     if (_notifications.isEmpty) {
-      // GIAO DIỆN HỘP THƯ RỖNG
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -231,21 +232,21 @@ class _NotificationPopupState extends State<NotificationPopup> {
             Icon(
               Icons.notifications_off_outlined,
               size: 48,
-              color: Colors.grey.shade400,
+              color: isDarkMode ? const Color(0xFF5A6978) : Colors.grey.shade400,
             ),
             const SizedBox(height: 16),
-            const Text(
+            Text(
               "You're all caught up!",
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
-                color: Color(0xFF172B4D),
+                color: emptyTitleColor,
               ),
             ),
             const SizedBox(height: 8),
-            const Text(
+            Text(
               "You have no unread notifications.",
-              style: TextStyle(fontSize: 14, color: Color(0xFF5E6C84)),
+              style: TextStyle(fontSize: 14, color: emptySubColor),
             ),
           ],
         ),
@@ -262,25 +263,24 @@ class _NotificationPopupState extends State<NotificationPopup> {
         return InkWell(
           onTap: () => _markAsRead(index),
           child: Container(
-            color: notif.read
-                ? Colors.transparent
-                : const Color(0xFFE9F2FF).withOpacity(0.5),
+            color: notif.read ? Colors.transparent : unreadBgColor,
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Icon Notification
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: isDarkMode ? const Color(0xFF22272B) : Colors.white,
                     borderRadius: BorderRadius.circular(4),
-                    border: Border.all(color: Colors.grey.shade200),
+                    border: Border.all(
+                      color: isDarkMode ? const Color(0xFF38414A) : Colors.grey.shade200,
+                    ),
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.assignment_ind,
                     size: 20,
-                    color: Color(0xFF0052CC),
+                    color: unreadDotColor,
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -292,21 +292,19 @@ class _NotificationPopupState extends State<NotificationPopup> {
                     children: [
                       RichText(
                         text: TextSpan(
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 14,
-                            color: Color(0xFF172B4D),
+                            color: emptyTitleColor, 
                           ),
                           children: [
                             TextSpan(
                               text: notif.title,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w600,
-                              ),
+                              style: const TextStyle(fontWeight: FontWeight.w600),
                             ),
                             TextSpan(
                               text: '  $timeAgo',
-                              style: const TextStyle(
-                                color: Color(0xFF5E6C84),
+                              style: TextStyle(
+                                color: emptySubColor, 
                                 fontSize: 13,
                               ),
                             ),
@@ -316,17 +314,17 @@ class _NotificationPopupState extends State<NotificationPopup> {
                       const SizedBox(height: 4),
                       Text(
                         notif.content,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 14,
-                          color: Color(0xFF172B4D),
+                          color: emptyTitleColor,
                         ),
                       ),
                       const SizedBox(height: 6),
-                      const Text(
+                      Text(
                         'View details',
                         style: TextStyle(
                           fontSize: 13,
-                          color: Color(0xFF5E6C84),
+                          color: emptySubColor,
                         ),
                       ),
                     ],
@@ -339,8 +337,8 @@ class _NotificationPopupState extends State<NotificationPopup> {
                     margin: const EdgeInsets.only(top: 6, left: 8),
                     width: 8,
                     height: 8,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFF0052CC),
+                    decoration: BoxDecoration(
+                      color: unreadDotColor,
                       shape: BoxShape.circle,
                     ),
                   ),

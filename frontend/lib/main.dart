@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../views/auth/login_screen.dart';
 import '../views/home/home_page.dart';
 import '../views/landingpage.dart';
 import '../auth/auth_gate.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+
+final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier(ThemeMode.light);
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -16,17 +18,36 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'TaskFlow',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(primarySwatch: Colors.blue, fontFamily: 'Inter'),
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: themeNotifier,
+      builder: (context, currentMode, child) {
+        return MaterialApp(
+          title: 'TaskFlow',
+          debugShowCheckedModeBanner: false,
 
-      home: const LandingPage(),
+          theme: ThemeData(
+            brightness: Brightness.light,
+            primarySwatch: Colors.blue,
+            fontFamily: 'Inter',
+            scaffoldBackgroundColor: Colors.white,
+          ),
 
-      routes: {
-        '/login': (_) => const LoginPage(),
+          darkTheme: ThemeData(
+            brightness: Brightness.dark,
+            primarySwatch: Colors.blue,
+            fontFamily: 'Inter',
+            scaffoldBackgroundColor: const Color(0xFF121212),
+          ),
 
-        '/home': (_) => const AuthGate(child: HomePage()),
+          themeMode: currentMode,
+
+          home: const LandingPage(),
+
+          routes: {
+            '/login': (_) => const LoginPage(),
+            '/home': (_) => const AuthGate(child: HomePage()),
+          },
+        );
       },
     );
   }
