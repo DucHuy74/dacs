@@ -5,6 +5,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 @Component
 public class UserStoryAnalyzer {
@@ -64,6 +65,8 @@ public class UserStoryAnalyzer {
 
             Map.entry("system", List.of("system", "application", "platform")),
 
+            Map.entry("password", List.of("password", "PIN", "otp", "key")),
+
             Map.entry("account", List.of("account", "user account")),
             Map.entry("user", List.of("user", "member")),
             Map.entry("role", List.of("role", "permission", "access control")),
@@ -113,7 +116,11 @@ public class UserStoryAnalyzer {
 
         for (var entry : dictionary.entrySet()) {
             for (String keyword : entry.getValue()) {
-                if (text.contains(keyword)) {
+                //kiem tra toan bo chuoi
+                // .* : bat ki ky tu nao, xh bnh lan cx dc
+                // \b: word boundary: ranh gioi tu, dam bảo log: ok, login thì khác
+                // Pattern.quote(keyword): neu co ky tu dac biet thi sẽ escape toan bo keyword thanh literal text
+                if (text.matches(".*\\b" + Pattern.quote(keyword) + "\\b.*")) {
                     return entry.getKey();
                 }
             }
