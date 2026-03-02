@@ -127,6 +127,16 @@ public class SprintAppServiceImpl implements SprintAppService {
                 story.setSprint(null); //về backlog
                 story.setBacklog(sprint.getWorkspace().getBacklog());
                 story.setStatus(UserStoryStatus.ToDo);
+
+                publisher.publishEvent(
+                        new UserStoryCreatedEvent(
+                                story.getId(),
+                                story.getStoryText(),
+                                null,
+                                sprint.getWorkspace().getBacklog().getId(),
+                                sprint.getWorkspace().getId()
+                        )
+                );
             }
         }
     }
