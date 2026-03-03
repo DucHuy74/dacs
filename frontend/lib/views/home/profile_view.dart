@@ -22,22 +22,36 @@ class _ProfilePageState extends State<ProfilePage> {
 
   @override
   Widget build(BuildContext context) {
-    const backgroundColor = Color(0xFF1E1F22);
-    const cardColor = Color(0xFF2B2D31);
-    const textColor = Colors.white;
-    const subTextColor = Color(0xFFA0A0A0);
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
+    final backgroundColor = isDarkMode
+        ? const Color(0xFF1E1F22)
+        : const Color(0xFFF4F5F7);
+    final cardColor = isDarkMode ? const Color(0xFF2B2D31) : Colors.white;
+    final textColor = isDarkMode ? Colors.white : const Color(0xFF172B4D);
+    final subTextColor = isDarkMode
+        ? const Color(0xFFA0A0A0)
+        : const Color(0xFF5E6C84);
+    final shadowColor = isDarkMode
+        ? Colors.black.withOpacity(0.2)
+        : Colors.black.withOpacity(0.06);
+    final appBarIconColor = isDarkMode ? Colors.white : const Color(0xFF172B4D);
 
     return Scaffold(
       backgroundColor: backgroundColor,
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           'My Profile',
-          style: TextStyle(fontWeight: FontWeight.w600, fontSize: 20),
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 20,
+            color: textColor, 
+          ),
         ),
         centerTitle: true,
         backgroundColor: backgroundColor,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
+        iconTheme: IconThemeData(color: appBarIconColor), 
       ),
       body: FutureBuilder<UserProfile>(
         future: _profileFuture,
@@ -56,7 +70,6 @@ class _ProfilePageState extends State<ProfilePage> {
           } else if (snapshot.hasData) {
             final profile = snapshot.data!;
             final fullName = '${profile.lastName} ${profile.firstName}';
-
             final displayUsername = '@${profile.username}';
 
             return SingleChildScrollView(
@@ -85,9 +98,10 @@ class _ProfilePageState extends State<ProfilePage> {
                               profile.firstName.isNotEmpty
                                   ? profile.firstName[0].toUpperCase()
                                   : 'U',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 40,
-                                color: Colors.white,
+                                color:
+                                    textColor, 
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -99,7 +113,7 @@ class _ProfilePageState extends State<ProfilePage> {
                             color: const Color(0xFFF0C070),
                             shape: BoxShape.circle,
                             border: Border.all(
-                              color: backgroundColor,
+                              color: backgroundColor, 
                               width: 3,
                             ),
                           ),
@@ -116,7 +130,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
                   Text(
                     fullName,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: textColor,
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
@@ -142,7 +156,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
+                          color: shadowColor,
                           blurRadius: 10,
                           offset: const Offset(0, 4),
                         ),
@@ -154,41 +168,41 @@ class _ProfilePageState extends State<ProfilePage> {
                           icon: Icons.badge_outlined,
                           label: 'Full Name',
                           value: fullName,
+                          isDarkMode: isDarkMode,
                           textColor: textColor,
                           subTextColor: subTextColor,
                         ),
-                        _buildDivider(),
+                        _buildDivider(isDarkMode),
                         _buildInfoTile(
                           icon: Icons.alternate_email,
                           label: 'Username',
                           value: profile.username,
+                          isDarkMode: isDarkMode,
                           textColor: textColor,
                           subTextColor: subTextColor,
                         ),
-                        _buildDivider(),
+                        _buildDivider(isDarkMode),
                         _buildInfoTile(
                           icon: Icons.email_outlined,
                           label: 'Email',
-                          value: profile
-                              .email, // Nhớ thêm trường email vào user_profile_model.dart
+                          value: profile.email,
+                          isDarkMode: isDarkMode,
                           textColor: textColor,
                           subTextColor: subTextColor,
                         ),
-                        _buildDivider(),
+                        _buildDivider(isDarkMode),
                         _buildInfoTile(
                           icon: Icons.calendar_today_outlined,
                           label: 'Date of Birth',
-                          value: profile
-                              .dob, // Nhớ thêm trường dob vào user_profile_model.dart
+                          value: profile.dob,
+                          isDarkMode: isDarkMode,
                           textColor: textColor,
                           subTextColor: subTextColor,
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(
-                    height: 24,
-                  ), // Giữ lại một chút khoảng trống dưới cùng để khi cuộn không bị sát viền
+                  const SizedBox(height: 24),
                 ],
               ),
             );
@@ -199,9 +213,9 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  Widget _buildDivider() {
-    return const Divider(
-      color: Colors.white12,
+  Widget _buildDivider(bool isDarkMode) {
+    return Divider(
+      color: isDarkMode ? Colors.white12 : const Color(0xFFEBECF0),
       height: 1,
       indent: 56,
       endIndent: 16,
@@ -212,18 +226,24 @@ class _ProfilePageState extends State<ProfilePage> {
     required IconData icon,
     required String label,
     required String value,
+    required bool isDarkMode,
     required Color textColor,
     required Color subTextColor,
   }) {
+    final iconBgColor = isDarkMode
+        ? Colors.white.withOpacity(0.05)
+        : const Color(0xFFDEEBFF);
+    final iconColor = isDarkMode ? Colors.white70 : const Color(0xFF0052CC);
+
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       leading: Container(
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.05),
+          color: iconBgColor,
           borderRadius: BorderRadius.circular(10),
         ),
-        child: Icon(icon, color: Colors.white70, size: 22),
+        child: Icon(icon, color: iconColor, size: 22),
       ),
       title: Text(label, style: TextStyle(color: subTextColor, fontSize: 13)),
       subtitle: Padding(
