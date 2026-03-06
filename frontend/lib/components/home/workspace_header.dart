@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/home/workspace_model.dart';
 import '../../viewmodels/home/invite_to_project_view_model.dart';
+import 'workspace_member_stack.dart';
 
 class WorkspaceHeader extends StatelessWidget {
   final WorkspaceModel workspace;
@@ -26,7 +27,6 @@ class WorkspaceHeader extends StatelessWidget {
     return colors[name.hashCode % colors.length];
   }
 
-  // --- HÀM HIỂN THỊ DIALOG ---
   void _showAddPeopleDialog(BuildContext context) {
     showDialog(
       context: context,
@@ -96,9 +96,19 @@ class WorkspaceHeader extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 12),
+
         IconButton(
           icon: const Icon(Icons.people_outline, size: 20),
-          onPressed: () => _showAddPeopleDialog(context),
+          tooltip: 'View Members',
+          onPressed: () {
+            showDialog(
+              context: context,
+              builder: (context) => WorkspaceMembersDialog(
+                workspaceId: workspace.id,
+                workspaceName: workspace.name,
+              ),
+            );
+          },
         ),
         IconButton(
           icon: const Icon(Icons.star_border, size: 20),

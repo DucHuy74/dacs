@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import '../../services/backlog/create_userstory_service.dart';
+import '../../services/backlog/userstory_service.dart';
 import '../../models/backlog/task_status.dart';
 
-class CreateUserStoryViewModel extends ChangeNotifier {
-  final CreateUserStoryService _service = CreateUserStoryService();
-  
+class UserStoryViewModel extends ChangeNotifier {
+  final UserStoryService _service = UserStoryService();
+
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
@@ -17,12 +17,12 @@ class CreateUserStoryViewModel extends ChangeNotifier {
     final success = await _service.createUserStory(
       workspaceId: workspaceId,
       storyText: text,
-      status: SprintStatus.ToDo, 
+      status: SprintStatus.ToDo,
     );
 
     _isLoading = false;
     notifyListeners();
-    
+
     return success;
   }
 }

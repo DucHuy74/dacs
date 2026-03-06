@@ -39,21 +39,17 @@ class SprintGraphService {
         final body = jsonDecode(response.body);
         print("Graph Data Response: $body");
 
-        // Xử lý các kiểu bọc (wrapper) trả về từ Backend của bạn
-        // Nếu Backend trả về chuẩn chung có dạng { "code": 1000, "result": { "sprintGraph": {...} } }
         if (body['code'] == 1000 && body['result'] != null) {
           if (body['result']['sprintGraph'] != null) {
             return body['result']['sprintGraph'];
           }
-          return body['result']; // Đề phòng trường hợp result chính là object chứa nodes/edges
+          return body['result']; 
         } 
         
-        // Nếu Backend trả về trực tiếp { "sprintGraph": { "nodes": [], "edges": [] } }
         else if (body['sprintGraph'] != null) {
           return body['sprintGraph'];
         } 
         
-        // Nếu Backend trả thẳng object { "nodes": [], "edges": [] }
         return body; 
         
       } else {

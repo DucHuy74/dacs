@@ -8,23 +8,96 @@ import '../../models/backlog/graph_model.dart';
 import '../../viewmodels/backlog/graph_view_model.dart';
 
 // =============================================================================
-// THEME CONSTANTS
+// THEME CONFIGURATION
 // =============================================================================
-const kBgColor = Color(0xFF0D1117);
-const kSubjectFill = Color(0xFF161B22);
-const kSubjectBorder = Color(0xFF58A6FF);
-const kVerbFill = Color(0xFF1A1040);
-const kVerbBorder = Color(0xFF7C3AED);
-const kVerbGlow = Color(0xFF7C3AED);
-const kObjectFill = Color(0xFF0D1117);
-const kObjectBorder = Color(0xFF22D3EE);
-const kLineColor = Color(0x556E7FBF);
-const kHighlightLine = Color(0xFF818CF8);
-const kTextPrimary = Color(0xFFE6EDF3);
-const kTextSecondary = Color(0xFF8B949E);
+class GraphTheme {
+  final Color bgColor;
+  final Color subjectFill;
+  final Color subjectBorder;
+  final Color verbFill;
+  final Color verbBorder;
+  final Color objectFill;
+  final Color objectBorder;
+  final Color lineColor;
+  final Color highlightLine;
+  final Color textPrimary;
+  final Color textSecondary;
+  final Color doneColor;
+  final Color inProgressColor;
+  final Color panelBg;
+  final Color panelBorder;
+  final Color tooltipShadow;
+  final Color lassoColor;
+  final Color selectionBorder;
 
-const kDoneColor = Color(0xFF238636);
-const kInProgressColor = Color(0xFFD29922);
+  GraphTheme({
+    required this.bgColor,
+    required this.subjectFill,
+    required this.subjectBorder,
+    required this.verbFill,
+    required this.verbBorder,
+    required this.objectFill,
+    required this.objectBorder,
+    required this.lineColor,
+    required this.highlightLine,
+    required this.textPrimary,
+    required this.textSecondary,
+    required this.doneColor,
+    required this.inProgressColor,
+    required this.panelBg,
+    required this.panelBorder,
+    required this.tooltipShadow,
+    required this.lassoColor,
+    required this.selectionBorder,
+  });
+
+  factory GraphTheme.of(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return isDark ? GraphTheme.dark() : GraphTheme.light();
+  }
+
+  factory GraphTheme.dark() => GraphTheme(
+    bgColor: const Color(0xFF0D1117),
+    subjectFill: const Color(0xFF161B22),
+    subjectBorder: const Color(0xFF58A6FF),
+    verbFill: const Color(0xFF1A1040),
+    verbBorder: const Color(0xFF7C3AED),
+    objectFill: const Color(0xFF0D1117),
+    objectBorder: const Color(0xFF22D3EE),
+    lineColor: const Color(0x556E7FBF),
+    highlightLine: const Color(0xFF818CF8),
+    textPrimary: const Color(0xFFE6EDF3),
+    textSecondary: const Color(0xFF8B949E),
+    doneColor: const Color(0xFF238636),
+    inProgressColor: const Color(0xFFD29922),
+    panelBg: const Color(0xFF161B22),
+    panelBorder: const Color(0xFF30363D),
+    tooltipShadow: Colors.black.withOpacity(0.5),
+    lassoColor: Colors.white70,
+    selectionBorder: Colors.white,
+  );
+
+  factory GraphTheme.light() => GraphTheme(
+    bgColor: const Color(0xFFF4F5F7),
+    subjectFill: Colors.white,
+    subjectBorder: const Color(0xFF0052CC),
+    verbFill: const Color(0xFFEAE6FF),
+    verbBorder: const Color(0xFF5243AA),
+    objectFill: Colors.white,
+    objectBorder: const Color(0xFF00B8D9),
+    lineColor: const Color(0xFFDFE1E6),
+    highlightLine: const Color(0xFF0052CC),
+    textPrimary: const Color(0xFF172B4D),
+    textSecondary: const Color(0xFF5E6C84),
+    doneColor: const Color(0xFF00875A),
+    inProgressColor: const Color(0xFFFF991F),
+    panelBg: Colors.white,
+    panelBorder: const Color(0xFFDFE1E6),
+    tooltipShadow: const Color(0xFF091E42).withOpacity(0.15),
+    lassoColor: const Color(0xFF0052CC).withOpacity(0.7),
+    selectionBorder: const Color(0xFF172B4D),
+  );
+}
 
 // =============================================================================
 // CLASS WRAPPER: BỌC PROVIDER
@@ -86,6 +159,8 @@ class _BacklogGraphScreenContentState extends State<_BacklogGraphScreenContent>
 
   late AnimationController _spinController;
 
+  GraphTheme get theme => GraphTheme.of(context);
+
   @override
   void initState() {
     super.initState();
@@ -94,7 +169,6 @@ class _BacklogGraphScreenContentState extends State<_BacklogGraphScreenContent>
       duration: const Duration(seconds: 2),
     )..repeat();
 
-    // Nạp dữ liệu khi mở màn hình
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadData();
     });
@@ -227,7 +301,7 @@ class _BacklogGraphScreenContentState extends State<_BacklogGraphScreenContent>
         });
       }
       _drawnPoints.clear();
-      _isLassoMode = false; 
+      _isLassoMode = false;
     });
   }
 
@@ -240,28 +314,26 @@ class _BacklogGraphScreenContentState extends State<_BacklogGraphScreenContent>
     final vm = context.watch<GraphViewModel>();
 
     return Scaffold(
-      backgroundColor: kBgColor,
+      backgroundColor: theme.bgColor,
       appBar: AppBar(
         title: Text(
           widget.backlogName.isNotEmpty ? widget.backlogName : "Backlog Graph",
-          style: const TextStyle(
-            color: kTextPrimary,
+          style: TextStyle(
+            color: theme.textPrimary,
             fontSize: 16,
             letterSpacing: 1.2,
           ),
         ),
-        backgroundColor: const Color(0xFF161B22),
+        backgroundColor: theme.panelBg,
         elevation: 0,
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
-          child: Container(color: const Color(0xFF30363D), height: 1),
+          child: Container(color: theme.panelBorder, height: 1),
         ),
       ),
       floatingActionButton: _buildFab(vm.stories),
       body: vm.isLoading
-          ? const Center(
-              child: CircularProgressIndicator(color: kSubjectBorder),
-            )
+          ? Center(child: CircularProgressIndicator(color: theme.subjectBorder))
           : vm.errorMessage != null
           ? Center(
               child: Text(
@@ -291,13 +363,14 @@ class _BacklogGraphScreenContentState extends State<_BacklogGraphScreenContent>
                             animation: _spinController,
                             builder: (_, __) => CustomPaint(
                               size: const Size(2500, 2500),
-                              painter: DarkLinesPainter(
+                              painter: GraphLinesPainter(
                                 nodePositions: nodePositions,
                                 expandedSubjects: expandedSubjects,
                                 mockData: vm.stories,
                                 verbToTargetKey: verbToTargetKey,
                                 subjects: _getUniqueSubjects(vm.stories),
                                 hoveredKey: _hoveredNodeKey,
+                                theme: theme,
                               ),
                             ),
                           ),
@@ -310,13 +383,16 @@ class _BacklogGraphScreenContentState extends State<_BacklogGraphScreenContent>
                               isObjectASubject: (obj) =>
                                   _isObjectASubject(obj, vm.stories),
                               makeObjectKey: _makeObjectKey,
+                              theme: theme,
                             ),
                           ),
-                          // Lasso Painter vẽ đường nét
                           if (_isLassoMode && _drawnPoints.isNotEmpty)
                             CustomPaint(
                               size: const Size(2500, 2500),
-                              painter: LassoPainter(drawnPoints: _drawnPoints),
+                              painter: LassoPainter(
+                                drawnPoints: _drawnPoints,
+                                theme: theme,
+                              ),
                             ),
                           ..._buildNodeWidgets(vm.stories),
                         ],
@@ -344,12 +420,12 @@ class _BacklogGraphScreenContentState extends State<_BacklogGraphScreenContent>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
       decoration: BoxDecoration(
-        color: const Color(0xFF161B22),
+        color: theme.panelBg,
         borderRadius: BorderRadius.circular(30),
-        border: Border.all(color: kVerbBorder, width: 2),
+        border: Border.all(color: theme.verbBorder, width: 2),
         boxShadow: [
           BoxShadow(
-            color: kVerbBorder.withOpacity(0.3),
+            color: theme.verbBorder.withOpacity(0.3),
             blurRadius: 20,
             spreadRadius: 2,
             offset: const Offset(0, 4),
@@ -361,8 +437,8 @@ class _BacklogGraphScreenContentState extends State<_BacklogGraphScreenContent>
         children: [
           Text(
             '${_selectedNodeKeys.length} Nodes Selected ($storiesCount Stories)',
-            style: const TextStyle(
-              color: Colors.white,
+            style: TextStyle(
+              color: theme.textPrimary,
               fontWeight: FontWeight.bold,
               fontSize: 16,
             ),
@@ -370,7 +446,7 @@ class _BacklogGraphScreenContentState extends State<_BacklogGraphScreenContent>
           const SizedBox(width: 20),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: kVerbBorder,
+              backgroundColor: theme.verbBorder,
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(20),
@@ -393,7 +469,7 @@ class _BacklogGraphScreenContentState extends State<_BacklogGraphScreenContent>
           ),
           const SizedBox(width: 8),
           IconButton(
-            icon: const Icon(Icons.close, color: kTextSecondary),
+            icon: Icon(Icons.close, color: theme.textSecondary),
             onPressed: () => setState(() => _selectedNodeKeys.clear()),
           ),
         ],
@@ -405,33 +481,33 @@ class _BacklogGraphScreenContentState extends State<_BacklogGraphScreenContent>
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFF161B22),
-        border: Border.all(color: const Color(0xFF30363D)),
+        color: theme.panelBg,
+        border: Border.all(color: theme.panelBorder),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'RADIAL S-V-O GRAPH',
             style: TextStyle(
-              color: kTextSecondary,
+              color: theme.textSecondary,
               fontSize: 10,
               fontWeight: FontWeight.bold,
               letterSpacing: 1.5,
             ),
           ),
           const SizedBox(height: 10),
-          _legendItem(kSubjectBorder, 'Actor (S)', isCircle: true),
-          _legendItem(kObjectBorder, 'Object (O)', isCircle: false),
-          _legendItem(kVerbBorder, 'Action (V)', isCircle: true),
+          _legendItem(theme.subjectBorder, 'Actor (S)', isCircle: true),
+          _legendItem(theme.objectBorder, 'Object (O)', isCircle: false),
+          _legendItem(theme.verbBorder, 'Action (V)', isCircle: true),
           const SizedBox(height: 6),
-          _legendItem(kDoneColor, 'Done', isDot: true),
-          _legendItem(kInProgressColor, 'In Progress', isDot: true),
+          _legendItem(theme.doneColor, 'Done', isDot: true),
+          _legendItem(theme.inProgressColor, 'In Progress', isDot: true),
           const SizedBox(height: 8),
           Text(
             '${_getUniqueSubjects(stories).length} entities / ${stories.length} stories',
-            style: const TextStyle(color: kTextSecondary, fontSize: 10),
+            style: TextStyle(color: theme.textSecondary, fontSize: 10),
           ),
         ],
       ),
@@ -480,7 +556,7 @@ class _BacklogGraphScreenContentState extends State<_BacklogGraphScreenContent>
           const SizedBox(width: 8),
           Text(
             label,
-            style: const TextStyle(color: kTextSecondary, fontSize: 11),
+            style: TextStyle(color: theme.textSecondary, fontSize: 11),
           ),
         ],
       ),
@@ -564,10 +640,11 @@ class _BacklogGraphScreenContentState extends State<_BacklogGraphScreenContent>
               onTap: () {
                 if (_isLassoMode) {
                   setState(() {
-                    if (_selectedNodeKeys.contains(key))
+                    if (_selectedNodeKeys.contains(key)) {
                       _selectedNodeKeys.remove(key);
-                    else
+                    } else {
                       _selectedNodeKeys.add(key);
+                    }
                   });
                 } else {
                   _handleTap(key, text, type, story, stories);
@@ -601,7 +678,7 @@ class _BacklogGraphScreenContentState extends State<_BacklogGraphScreenContent>
               child: Text(
                 'expand',
                 style: TextStyle(
-                  color: kTextSecondary.withOpacity(0.7),
+                  color: theme.textSecondary.withOpacity(0.7),
                   fontSize: 9,
                   letterSpacing: 0.5,
                 ),
@@ -644,17 +721,21 @@ class _BacklogGraphScreenContentState extends State<_BacklogGraphScreenContent>
       height: h,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: isSelected ? kSubjectBorder.withOpacity(0.3) : kSubjectFill,
+        color: isSelected
+            ? theme.subjectBorder.withOpacity(0.3)
+            : theme.subjectFill,
         borderRadius: BorderRadius.circular(h / 2),
         border: Border.all(
           color: isSelected
-              ? Colors.white
-              : (isHovered ? kSubjectBorder : kSubjectBorder.withOpacity(0.7)),
+              ? theme.selectionBorder
+              : (isHovered
+                    ? theme.subjectBorder
+                    : theme.subjectBorder.withOpacity(0.7)),
           width: isSelected || isHovered ? 2.5 : 2.0,
         ),
         boxShadow: [
           BoxShadow(
-            color: kSubjectBorder.withOpacity(
+            color: theme.subjectBorder.withOpacity(
               isSelected || isHovered ? 0.4 : 0.15,
             ),
             blurRadius: isSelected || isHovered ? 20 : 12,
@@ -665,7 +746,7 @@ class _BacklogGraphScreenContentState extends State<_BacklogGraphScreenContent>
         text,
         textAlign: TextAlign.center,
         style: TextStyle(
-          color: kTextPrimary,
+          color: theme.textPrimary,
           fontWeight: FontWeight.bold,
           fontSize: text.length > 8 ? 12 : 14,
         ),
@@ -685,7 +766,7 @@ class _BacklogGraphScreenContentState extends State<_BacklogGraphScreenContent>
       builder: (context, child) {
         return CustomPaint(
           painter: _GlowCirclePainter(
-            color: isSelected ? Colors.white : kVerbBorder,
+            color: isSelected ? theme.selectionBorder : theme.verbBorder,
             glowRadius: (isSelected || isHovered) ? 0.8 : 0.4,
             animValue: _spinController.value,
           ),
@@ -694,20 +775,20 @@ class _BacklogGraphScreenContentState extends State<_BacklogGraphScreenContent>
             height: h,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: kVerbFill,
+              color: theme.verbFill,
               shape: BoxShape.circle,
               border: Border.all(
                 color: isSelected
-                    ? Colors.white
-                    : kVerbBorder.withOpacity(isHovered ? 1.0 : 0.8),
+                    ? theme.selectionBorder
+                    : theme.verbBorder.withOpacity(isHovered ? 1.0 : 0.8),
                 width: isSelected ? 2.5 : 1.5,
               ),
             ),
             child: Text(
               text,
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: kTextPrimary,
+              style: TextStyle(
+                color: theme.textPrimary,
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
               ),
@@ -727,21 +808,21 @@ class _BacklogGraphScreenContentState extends State<_BacklogGraphScreenContent>
     bool isSelected,
   ) {
     Color borderColor = story?.status == USStatus.done
-        ? kDoneColor
+        ? theme.doneColor
         : (story?.status == USStatus.inProgress
-              ? kInProgressColor
-              : kObjectBorder);
+              ? theme.inProgressColor
+              : theme.objectBorder);
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
       width: w,
       height: h,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: isSelected ? borderColor.withOpacity(0.3) : kObjectFill,
+        color: isSelected ? borderColor.withOpacity(0.3) : theme.objectFill,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
           color: isSelected
-              ? Colors.white
+              ? theme.selectionBorder
               : (isHovered ? borderColor : borderColor.withOpacity(0.7)),
           width: isSelected || isHovered ? 2.0 : 1.5,
         ),
@@ -759,8 +840,8 @@ class _BacklogGraphScreenContentState extends State<_BacklogGraphScreenContent>
         child: Text(
           text,
           textAlign: TextAlign.center,
-          style: const TextStyle(
-            color: kTextPrimary,
+          style: TextStyle(
+            color: theme.textPrimary,
             fontSize: 13,
             fontWeight: FontWeight.w600,
           ),
@@ -773,12 +854,12 @@ class _BacklogGraphScreenContentState extends State<_BacklogGraphScreenContent>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: const Color(0xFF1C2128),
-        border: Border.all(color: const Color(0xFF30363D)),
+        color: theme.panelBg,
+        border: Border.all(color: theme.panelBorder),
         borderRadius: BorderRadius.circular(8),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.5),
+            color: theme.tooltipShadow,
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -790,8 +871,8 @@ class _BacklogGraphScreenContentState extends State<_BacklogGraphScreenContent>
         children: [
           Text(
             objectName,
-            style: const TextStyle(
-              color: kTextPrimary,
+            style: TextStyle(
+              color: theme.textPrimary,
               fontSize: 14,
               fontWeight: FontWeight.bold,
             ),
@@ -799,7 +880,7 @@ class _BacklogGraphScreenContentState extends State<_BacklogGraphScreenContent>
           const SizedBox(height: 4),
           Text(
             'Object entity -- reused in $count ${count == 1 ? 'story' : 'stories'}',
-            style: const TextStyle(color: kTextSecondary, fontSize: 12),
+            style: TextStyle(color: theme.textSecondary, fontSize: 12),
           ),
         ],
       ),
@@ -815,17 +896,19 @@ class _BacklogGraphScreenContentState extends State<_BacklogGraphScreenContent>
   ) {
     if (_isZoningMode && type == NodeType.subject) {
       setState(() {
-        if (zonedSubjects.contains(text))
+        if (zonedSubjects.contains(text)) {
           zonedSubjects.remove(text);
-        else
+        } else {
           zonedSubjects.add(text);
+        }
       });
     } else if (type == NodeType.subject && !_isZoningMode) {
       setState(() {
-        if (expandedSubjects.contains(text))
+        if (expandedSubjects.contains(text)) {
           expandedSubjects.remove(text);
-        else
+        } else {
           expandedSubjects.add(text);
+        }
         _calculateLayout(stories);
       });
     } else if (type == NodeType.object && story != null) {
@@ -860,10 +943,11 @@ class _BacklogGraphScreenContentState extends State<_BacklogGraphScreenContent>
               ? Icons.unfold_more
               : Icons.unfold_less,
           onPressed: () => setState(() {
-            if (expandedSubjects.length == _getUniqueSubjects(stories).length)
+            if (expandedSubjects.length == _getUniqueSubjects(stories).length) {
               expandedSubjects.clear();
-            else
+            } else {
               expandedSubjects.addAll(_getUniqueSubjects(stories));
+            }
             _calculateLayout(stories);
           }),
         ),
@@ -882,20 +966,24 @@ class _BacklogGraphScreenContentState extends State<_BacklogGraphScreenContent>
     return FloatingActionButton(
       heroTag: heroTag,
       mini: true,
-      backgroundColor: active ? kVerbBorder : const Color(0xFF161B22),
+      backgroundColor: active ? theme.verbBorder : theme.panelBg,
       elevation: 4,
       onPressed: onPressed,
-      child: Icon(icon, color: active ? Colors.white : kTextPrimary, size: 20),
+      child: Icon(
+        icon,
+        color: active ? Colors.white : theme.textPrimary,
+        size: 20,
+      ),
     );
   }
 
   void _showActionMenu(BuildContext context, AnalyzedStory story) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFF161B22),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-        side: BorderSide(color: Color(0xFF30363D)),
+      backgroundColor: theme.panelBg,
+      shape: RoundedRectangleBorder(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+        side: BorderSide(color: theme.panelBorder),
       ),
       builder: (c) => Container(
         height: 180,
@@ -905,8 +993,8 @@ class _BacklogGraphScreenContentState extends State<_BacklogGraphScreenContent>
           children: [
             Text(
               story.rawText,
-              style: const TextStyle(
-                color: kTextPrimary,
+              style: TextStyle(
+                color: theme.textPrimary,
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
               ),
@@ -918,14 +1006,14 @@ class _BacklogGraphScreenContentState extends State<_BacklogGraphScreenContent>
                 const SizedBox(width: 12),
                 Text(
                   '${story.subject} → ${story.verb} → ${story.object}',
-                  style: const TextStyle(color: kTextSecondary, fontSize: 13),
+                  style: TextStyle(color: theme.textSecondary, fontSize: 13),
                 ),
               ],
             ),
             const SizedBox(height: 12),
             Text(
               'ID: ${story.id}',
-              style: const TextStyle(color: kTextSecondary, fontSize: 12),
+              style: TextStyle(color: theme.textSecondary, fontSize: 12),
             ),
           ],
         ),
@@ -935,8 +1023,10 @@ class _BacklogGraphScreenContentState extends State<_BacklogGraphScreenContent>
 
   Widget _statusChip(USStatus status) {
     Color color = status == USStatus.done
-        ? kDoneColor
-        : (status == USStatus.inProgress ? kInProgressColor : kTextSecondary);
+        ? theme.doneColor
+        : (status == USStatus.inProgress
+              ? theme.inProgressColor
+              : theme.textSecondary);
     String label = status == USStatus.done
         ? 'Done'
         : (status == USStatus.inProgress ? 'In Progress' : 'Todo');
@@ -960,23 +1050,25 @@ class _BacklogGraphScreenContentState extends State<_BacklogGraphScreenContent>
 }
 
 // =============================================================================
-// GRAPH PAINTERS (DarkLinesPainter, ZoningPainter, _GlowCirclePainter, LassoPainter)
+// GRAPH PAINTERS
 // =============================================================================
-class DarkLinesPainter extends CustomPainter {
+class GraphLinesPainter extends CustomPainter {
   final Map<String, Offset> nodePositions;
   final Set<String> expandedSubjects;
   final List<AnalyzedStory> mockData;
   final Map<String, String> verbToTargetKey;
   final List<String> subjects;
   final String? hoveredKey;
+  final GraphTheme theme;
 
-  DarkLinesPainter({
+  GraphLinesPainter({
     required this.nodePositions,
     required this.expandedSubjects,
     required this.mockData,
     required this.verbToTargetKey,
     required this.subjects,
     this.hoveredKey,
+    required this.theme,
   });
 
   @override
@@ -1001,7 +1093,9 @@ class DarkLinesPainter extends CustomPainter {
                 hoveredKey == verbToTargetKey[verbKey]);
 
         final paint = Paint()
-          ..color = isHighlighted ? kHighlightLine.withOpacity(0.9) : kLineColor
+          ..color = isHighlighted
+              ? theme.highlightLine.withOpacity(0.9)
+              : theme.lineColor
           ..strokeWidth = isHighlighted ? 2.0 : 1.0
           ..style = PaintingStyle.stroke;
 
@@ -1027,7 +1121,7 @@ class DarkLinesPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant DarkLinesPainter old) =>
+  bool shouldRepaint(covariant GraphLinesPainter old) =>
       old.hoveredKey != hoveredKey || true;
 }
 
@@ -1037,6 +1131,7 @@ class ZoningPainter extends CustomPainter {
   final List<AnalyzedStory> mockData;
   final Function(String) isObjectASubject;
   final Function(String, USStatus) makeObjectKey;
+  final GraphTheme theme;
 
   ZoningPainter({
     required this.nodePositions,
@@ -1044,13 +1139,14 @@ class ZoningPainter extends CustomPainter {
     required this.mockData,
     required this.isObjectASubject,
     required this.makeObjectKey,
+    required this.theme,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
     if (zonedSubjects.isEmpty) return;
     final paint = Paint()
-      ..color = kVerbBorder.withOpacity(0.8)
+      ..color = theme.verbBorder.withOpacity(0.8)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2.0;
 
@@ -1118,8 +1214,9 @@ class _GlowCirclePainter extends CustomPainter {
 
 class LassoPainter extends CustomPainter {
   final List<Offset> drawnPoints;
+  final GraphTheme theme;
 
-  LassoPainter({required this.drawnPoints});
+  LassoPainter({required this.drawnPoints, required this.theme});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1132,7 +1229,7 @@ class LassoPainter extends CustomPainter {
     }
 
     final strokePaint = Paint()
-      ..color = Colors.white70
+      ..color = theme.lassoColor
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2.0
       ..strokeCap = StrokeCap.round
