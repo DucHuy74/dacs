@@ -5,27 +5,103 @@ import 'package:flutter/material.dart';
 
 import '../../models/backlog/user_story_model.dart';
 import '../../services/backlog/sprint_service.dart';
+import '../../services/backlog/userstory_service.dart';
+import '../../models/backlog/task_status.dart';
 
 // =============================================================================
-// THEME CONSTANTS
+// THEME CONFIGURATION
 // =============================================================================
-const kBgColor = Color(0xFF0D1117);
-const kSubjectFill = Color(0xFF161B22);
-const kSubjectBorder = Color(0xFF58A6FF);
-const kVerbFill = Color(0xFF1A1040);
-const kVerbBorder = Color(0xFF7C3AED);
-const kObjectFill = Color(0xFF0D1117);
-const kObjectBorder = Color(0xFF22D3EE);
-const kLineColor = Color(0x556E7FBF);
-const kHighlightLine = Color(0xFF818CF8);
-const kTextPrimary = Color(0xFFE6EDF3);
-const kTextSecondary = Color(0xFF8B949E);
+class GraphTheme {
+  final Color bgColor;
+  final Color subjectFill;
+  final Color subjectBorder;
+  final Color verbFill;
+  final Color verbBorder;
+  final Color objectFill;
+  final Color objectBorder;
+  final Color lineColor;
+  final Color highlightLine;
+  final Color textPrimary;
+  final Color textSecondary;
+  final Color doneColor;
+  final Color inProgressColor;
+  final Color panelBg;
+  final Color panelBorder;
+  final Color tooltipShadow;
+  final Color lassoColor;
+  final Color selectionBorder;
 
-const kDoneColor = Color(0xFF238636);
-const kInProgressColor = Color(0xFFD29922);
+  GraphTheme({
+    required this.bgColor,
+    required this.subjectFill,
+    required this.subjectBorder,
+    required this.verbFill,
+    required this.verbBorder,
+    required this.objectFill,
+    required this.objectBorder,
+    required this.lineColor,
+    required this.highlightLine,
+    required this.textPrimary,
+    required this.textSecondary,
+    required this.doneColor,
+    required this.inProgressColor,
+    required this.panelBg,
+    required this.panelBorder,
+    required this.tooltipShadow,
+    required this.lassoColor,
+    required this.selectionBorder,
+  });
+
+  factory GraphTheme.of(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return isDark ? GraphTheme.dark() : GraphTheme.light();
+  }
+
+  factory GraphTheme.dark() => GraphTheme(
+    bgColor: const Color(0xFF0D1117),
+    subjectFill: const Color(0xFF161B22),
+    subjectBorder: const Color(0xFF58A6FF),
+    verbFill: const Color(0xFF1A1040),
+    verbBorder: const Color(0xFF7C3AED),
+    objectFill: const Color(0xFF0D1117),
+    objectBorder: const Color(0xFF22D3EE),
+    lineColor: const Color(0x556E7FBF),
+    highlightLine: const Color(0xFF818CF8),
+    textPrimary: const Color(0xFFE6EDF3),
+    textSecondary: const Color(0xFF8B949E),
+    doneColor: const Color(0xFF238636),
+    inProgressColor: const Color(0xFFD29922),
+    panelBg: const Color(0xFF161B22),
+    panelBorder: const Color(0xFF30363D),
+    tooltipShadow: Colors.black.withOpacity(0.5),
+    lassoColor: Colors.white70,
+    selectionBorder: Colors.white,
+  );
+
+  factory GraphTheme.light() => GraphTheme(
+    bgColor: const Color(0xFFF4F5F7),
+    subjectFill: Colors.white,
+    subjectBorder: const Color(0xFF0052CC),
+    verbFill: const Color(0xFFEAE6FF),
+    verbBorder: const Color(0xFF5243AA),
+    objectFill: Colors.white,
+    objectBorder: const Color(0xFF00B8D9),
+    lineColor: const Color(0xFFDFE1E6),
+    highlightLine: const Color(0xFF0052CC),
+    textPrimary: const Color(0xFF172B4D),
+    textSecondary: const Color(0xFF5E6C84),
+    doneColor: const Color(0xFF00875A),
+    inProgressColor: const Color(0xFFFF991F),
+    panelBg: Colors.white,
+    panelBorder: const Color(0xFFDFE1E6),
+    tooltipShadow: const Color(0xFF091E42).withOpacity(0.15),
+    lassoColor: const Color(0xFF0052CC).withOpacity(0.7),
+    selectionBorder: const Color(0xFF172B4D),
+  );
+}
 
 // =============================================================================
-// INTERNAL MODEL (Giống AnalyzedStory của Backlog)
+// INTERNAL MODEL
 // =============================================================================
 class SprintSvoStory {
   final String id;
@@ -67,6 +143,7 @@ enum NodeType { subject, verb, object }
 class _SprintGraphScreenState extends State<SprintGraphScreen>
     with SingleTickerProviderStateMixin {
   final SprintService _sprintService = SprintService();
+  final UserStoryService _userStoryService = UserStoryService();
 
   bool _isLoading = true;
   String? _errorMessage;
@@ -85,6 +162,8 @@ class _SprintGraphScreenState extends State<SprintGraphScreen>
   Set<String> _selectedNodeKeys = {};
 
   late AnimationController _spinController;
+
+  GraphTheme get theme => GraphTheme.of(context);
 
   @override
   void initState() {
@@ -110,7 +189,6 @@ class _SprintGraphScreenState extends State<SprintGraphScreen>
     }
   }
 
-  // LẤY TRỰC TIẾP TỪ SPRINT SERVICE THAY VÌ GRAPHQL ĐỂ ĐẢM BẢO DỮ LIỆU CHUẨN XÁC
   Future<void> _loadSprintStories() async {
     setState(() {
       _isLoading = true;
@@ -121,7 +199,6 @@ class _SprintGraphScreenState extends State<SprintGraphScreen>
       final List<UserStoryModel> apiStories = await _sprintService
           .getStoriesInSprint(widget.sprintId);
 
-      // Phân tích NLP giả lập (như BacklogViewModel)
       List<SprintSvoStory> parsedStories = apiStories.map((story) {
         final text = story.storyText.toLowerCase();
         String subject = "user";
@@ -269,33 +346,109 @@ class _SprintGraphScreenState extends State<SprintGraphScreen>
   }
 
   // ===========================================================================
+  // HÀM XỬ LÝ CẬP NHẬT STATUS STORY MỚI THÊM
+  // ===========================================================================
+  SprintStatus _mapStringToSprintStatus(String statusStr) {
+    switch (statusStr.toUpperCase()) {
+      case 'INPROGRESS':
+        return SprintStatus.InProgress;
+      case 'DONE':
+        return SprintStatus.Done;
+      case 'TODO':
+      default:
+        return SprintStatus.ToDo;
+    }
+  }
+
+  Future<void> _updateStoryStatus(
+    List<String> storyIds,
+    String newStatus,
+  ) async {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Đang cập nhật ${storyIds.length} story thành $newStatus...',
+        ),
+      ),
+    );
+
+    bool allSuccess = true;
+
+    // Chuyển đổi chuỗi String sang Enum trước khi gọi API
+    SprintStatus enumStatus = _mapStringToSprintStatus(newStatus);
+
+    for (String id in storyIds) {
+      final success = await _userStoryService.updateUserStoryStatus(
+        userStoryId: id,
+        status: enumStatus, // Truyền Enum thay vì String
+      );
+
+      if (success) {
+        setState(() {
+          final index = _stories.indexWhere((s) => s.id == id);
+          if (index != -1) {
+            final old = _stories[index];
+            _stories[index] = SprintSvoStory(
+              id: old.id,
+              rawText: old.rawText,
+              subject: old.subject,
+              verb: old.verb,
+              object: old.object,
+              status:
+                  newStatus, // Trên UI (SprintSvoStory) bạn vẫn đang dùng String, nên giữ nguyên newStatus
+            );
+          }
+        });
+      } else {
+        allSuccess = false;
+      }
+    }
+
+    if (allSuccess) {
+      setState(() {
+        _selectedNodeKeys.clear();
+        _calculateLayout(_stories);
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Cập nhật trạng thái thành công!'),
+            backgroundColor: theme.doneColor,
+          ),
+        );
+      }
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Có lỗi xảy ra khi cập nhật một số story.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  // ===========================================================================
   // HÀM XỬ LÝ COMPLETE SPRINT
   // ===========================================================================
   Future<void> _handleCompleteSprint() async {
-    // Gọi API Complete Sprint
     final success = await _sprintService.completeSprint(widget.sprintId);
 
     if (success) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Sprint Completed Successfully!'),
-            backgroundColor: Colors.green,
+          SnackBar(
+            content: const Text('Sprint Completed Successfully!'),
+            backgroundColor: theme.doneColor,
           ),
         );
 
-        // Theo logic của bạn: ToDo -> Về Backlog, Done -> Biến mất.
-        // Thực tế backend sẽ xử lý việc này trong database.
-        // Flutter chỉ cần load lại trang là nó tự động lọc ra các Story mới.
-
         setState(() {
           _selectedNodeKeys.clear();
-          // Ta có thể giả lập xoá các Story "Done" khỏi danh sách hiện tại để giao diện update ngay
           _stories.removeWhere((story) => story.status.toUpperCase() == 'DONE');
           _calculateLayout(_stories);
         });
-
-        // Tùy chọn: Báo cho màn hình cha (Workspace) để nó reload lại Backlog List.
       }
     } else {
       if (mounted) {
@@ -309,61 +462,95 @@ class _SprintGraphScreenState extends State<SprintGraphScreen>
     }
   }
 
-  // MENU KHI CLICK VÀO NODE USER STORY
   void _showActionMenu(BuildContext context, SprintSvoStory story) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFF161B22),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-        side: BorderSide(color: Color(0xFF30363D)),
+      backgroundColor: theme.panelBg,
+      shape: RoundedRectangleBorder(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+        side: BorderSide(color: theme.panelBorder),
       ),
       builder: (c) => Container(
-        height: 250,
+        height: 280,
         padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               story.rawText,
-              style: const TextStyle(
-                color: kTextPrimary,
+              style: TextStyle(
+                color: theme.textPrimary,
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
               ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
             const SizedBox(height: 8),
             Row(
               children: [
                 _statusChip(story.status),
                 const SizedBox(width: 12),
-                Text(
-                  '${story.subject} → ${story.verb} → ${story.object}',
-                  style: const TextStyle(color: kTextSecondary, fontSize: 13),
+                Expanded(
+                  child: Text(
+                    '${story.subject} → ${story.verb} → ${story.object}',
+                    style: TextStyle(color: theme.textSecondary, fontSize: 13),
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 24),
             Text(
-              'ID: ${story.id}',
-              style: const TextStyle(color: kTextSecondary, fontSize: 12),
+              'Update Status:',
+              style: TextStyle(
+                color: theme.textSecondary,
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+              ),
             ),
-            const Spacer(),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _buildStatusChangeBtn(
+                  context,
+                  story.id,
+                  'ToDo',
+                  Icons.list_alt,
+                  theme.textSecondary,
+                ),
+                _buildStatusChangeBtn(
+                  context,
+                  story.id,
+                  'InProgress',
+                  Icons.autorenew,
+                  theme.inProgressColor,
+                ),
+                _buildStatusChangeBtn(
+                  context,
+                  story.id,
+                  'Done',
+                  Icons.check_circle,
+                  theme.doneColor,
+                ),
+              ],
+            ),
 
-            // NÚT COMPLETE SPRINT Ở ĐÂY
+            const Spacer(),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
                 icon: const Icon(Icons.check_circle_outline),
                 label: const Text('Complete Sprint'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: kDoneColor,
+                  backgroundColor: theme.doneColor,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
                 onPressed: () {
-                  Navigator.pop(context); // Đóng menu
-                  _handleCompleteSprint(); // Gọi hàm
+                  Navigator.pop(context);
+                  _handleCompleteSprint();
                 },
               ),
             ),
@@ -373,12 +560,39 @@ class _SprintGraphScreenState extends State<SprintGraphScreen>
     );
   }
 
+  Widget _buildStatusChangeBtn(
+    BuildContext context,
+    String storyId,
+    String statusName,
+    IconData icon,
+    Color color,
+  ) {
+    return ElevatedButton.icon(
+      icon: Icon(icon, size: 16),
+      label: Text(statusName),
+      style: ElevatedButton.styleFrom(
+        foregroundColor: color,
+        backgroundColor: color.withOpacity(0.1),
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(color: color.withOpacity(0.5)),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      ),
+      onPressed: () {
+        Navigator.pop(context);
+        _updateStoryStatus([storyId], statusName);
+      },
+    );
+  }
+
   Widget _statusChip(String status) {
     Color color = status.toUpperCase() == 'DONE'
-        ? kDoneColor
+        ? theme.doneColor
         : (status.toUpperCase() == 'INPROGRESS'
-              ? kInProgressColor
-              : kTextSecondary);
+              ? theme.inProgressColor
+              : theme.textSecondary);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
@@ -400,24 +614,22 @@ class _SprintGraphScreenState extends State<SprintGraphScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: kBgColor,
+      backgroundColor: theme.bgColor,
       appBar: AppBar(
         title: Text(
           widget.sprintName.isNotEmpty ? widget.sprintName : "Sprint Graph",
-          style: const TextStyle(color: kTextPrimary, fontSize: 16),
+          style: TextStyle(color: theme.textPrimary, fontSize: 16),
         ),
-        backgroundColor: const Color(0xFF161B22),
+        backgroundColor: theme.panelBg,
         elevation: 0,
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
-          child: Container(color: const Color(0xFF30363D), height: 1),
+          child: Container(color: theme.panelBorder, height: 1),
         ),
       ),
       floatingActionButton: _buildFab(),
       body: _isLoading
-          ? const Center(
-              child: CircularProgressIndicator(color: kSubjectBorder),
-            )
+          ? Center(child: CircularProgressIndicator(color: theme.subjectBorder))
           : _errorMessage != null
           ? Center(
               child: Text(
@@ -447,13 +659,14 @@ class _SprintGraphScreenState extends State<SprintGraphScreen>
                             animation: _spinController,
                             builder: (_, __) => CustomPaint(
                               size: const Size(2500, 2500),
-                              painter: DarkLinesPainter(
+                              painter: GraphLinesPainter(
                                 nodePositions: nodePositions,
                                 expandedSubjects: expandedSubjects,
                                 mockData: _stories,
                                 verbToTargetKey: verbToTargetKey,
                                 subjects: _getUniqueSubjects(_stories),
                                 hoveredKey: _hoveredNodeKey,
+                                theme: theme,
                               ),
                             ),
                           ),
@@ -467,12 +680,16 @@ class _SprintGraphScreenState extends State<SprintGraphScreen>
                                   _isObjectASubject(obj, _stories),
                               makeObjectKey: (name, status) =>
                                   _makeObjectKey(name, status),
+                              theme: theme,
                             ),
                           ),
                           if (_isLassoMode && _drawnPoints.isNotEmpty)
                             CustomPaint(
                               size: const Size(2500, 2500),
-                              painter: LassoPainter(drawnPoints: _drawnPoints),
+                              painter: LassoPainter(
+                                drawnPoints: _drawnPoints,
+                                theme: theme,
+                              ),
                             ),
                           ..._buildNodeWidgets(),
                         ],
@@ -559,30 +776,31 @@ class _SprintGraphScreenState extends State<SprintGraphScreen>
             onExit: (_) => setState(() => _hoveredNodeKey = null),
             child: GestureDetector(
               onPanUpdate: (d) {
-                if (!_isZoningMode && !_isLassoMode)
+                if (!_isZoningMode && !_isLassoMode) {
                   setState(() => _avoidCollision(key, pos + d.delta));
+                }
               },
               onTap: () {
                 if (_isLassoMode) {
                   setState(() {
-                    if (isSelected)
+                    if (isSelected) {
                       _selectedNodeKeys.remove(key);
-                    else
+                    } else {
                       _selectedNodeKeys.add(key);
+                    }
                   });
                 } else if (type == NodeType.subject && !_isZoningMode) {
                   setState(() {
-                    if (expandedSubjects.contains(text))
+                    if (expandedSubjects.contains(text)) {
                       expandedSubjects.remove(text);
-                    else
+                    } else {
                       expandedSubjects.add(text);
+                    }
                     _calculateLayout(_stories);
                   });
                 } else if (type == NodeType.object && story != null) {
-                  // MỞ MENU COMPLETE KHI CLICK VÀO OBJECT
                   _showActionMenu(context, story);
                 } else if (type == NodeType.verb && story != null) {
-                  // HOẶC MỞ MENU COMPLETE KHI CLICK VÀO VERB CŨNG ĐƯỢC
                   _showActionMenu(context, story);
                 }
               },
@@ -614,7 +832,7 @@ class _SprintGraphScreenState extends State<SprintGraphScreen>
               child: Text(
                 'expand',
                 style: TextStyle(
-                  color: kTextSecondary.withOpacity(0.7),
+                  color: theme.textSecondary.withOpacity(0.7),
                   fontSize: 9,
                   letterSpacing: 0.5,
                 ),
@@ -642,19 +860,21 @@ class _SprintGraphScreenState extends State<SprintGraphScreen>
           height: h,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: isSelected ? kSubjectBorder.withOpacity(0.3) : kSubjectFill,
+            color: isSelected
+                ? theme.subjectBorder.withOpacity(0.3)
+                : theme.subjectFill,
             borderRadius: BorderRadius.circular(h / 2),
             border: Border.all(
               color: isSelected
-                  ? Colors.white
+                  ? theme.selectionBorder
                   : (isHovered
-                        ? kSubjectBorder
-                        : kSubjectBorder.withOpacity(0.7)),
+                        ? theme.subjectBorder
+                        : theme.subjectBorder.withOpacity(0.7)),
               width: isSelected || isHovered ? 2.5 : 2.0,
             ),
             boxShadow: [
               BoxShadow(
-                color: kSubjectBorder.withOpacity(
+                color: theme.subjectBorder.withOpacity(
                   isSelected || isHovered ? 0.4 : 0.15,
                 ),
                 blurRadius: isSelected || isHovered ? 20 : 12,
@@ -665,7 +885,7 @@ class _SprintGraphScreenState extends State<SprintGraphScreen>
             text,
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: kTextPrimary,
+              color: theme.textPrimary,
               fontWeight: FontWeight.bold,
               fontSize: text.length > 8 ? 12 : 14,
             ),
@@ -676,7 +896,7 @@ class _SprintGraphScreenState extends State<SprintGraphScreen>
           animation: _spinController,
           builder: (context, child) => CustomPaint(
             painter: _GlowCirclePainter(
-              color: isSelected ? Colors.white : kVerbBorder,
+              color: isSelected ? theme.selectionBorder : theme.verbBorder,
               glowRadius: (isSelected || isHovered) ? 0.8 : 0.4,
               animValue: _spinController.value,
             ),
@@ -685,20 +905,20 @@ class _SprintGraphScreenState extends State<SprintGraphScreen>
               height: h,
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: kVerbFill,
+                color: theme.verbFill,
                 shape: BoxShape.circle,
                 border: Border.all(
                   color: isSelected
-                      ? Colors.white
-                      : kVerbBorder.withOpacity(isHovered ? 1.0 : 0.8),
+                      ? theme.selectionBorder
+                      : theme.verbBorder.withOpacity(isHovered ? 1.0 : 0.8),
                   width: isSelected ? 2.5 : 1.5,
                 ),
               ),
               child: Text(
                 text,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: kTextPrimary,
+                style: TextStyle(
+                  color: theme.textPrimary,
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
                 ),
@@ -708,21 +928,21 @@ class _SprintGraphScreenState extends State<SprintGraphScreen>
         );
       case NodeType.object:
         Color borderColor = story?.status.toUpperCase() == 'DONE'
-            ? kDoneColor
+            ? theme.doneColor
             : (story?.status.toUpperCase() == 'INPROGRESS'
-                  ? kInProgressColor
-                  : kObjectBorder);
+                  ? theme.inProgressColor
+                  : theme.objectBorder);
         return AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           width: w,
           height: h,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: isSelected ? borderColor.withOpacity(0.3) : kObjectFill,
+            color: isSelected ? borderColor.withOpacity(0.3) : theme.objectFill,
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
               color: isSelected
-                  ? Colors.white
+                  ? theme.selectionBorder
                   : (isHovered ? borderColor : borderColor.withOpacity(0.7)),
               width: isSelected || isHovered ? 2.0 : 1.5,
             ),
@@ -740,8 +960,8 @@ class _SprintGraphScreenState extends State<SprintGraphScreen>
             child: Text(
               text,
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: kTextPrimary,
+              style: TextStyle(
+                color: theme.textPrimary,
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
               ),
@@ -755,12 +975,12 @@ class _SprintGraphScreenState extends State<SprintGraphScreen>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: const Color(0xFF1C2128),
-        border: Border.all(color: const Color(0xFF30363D)),
+        color: theme.panelBg,
+        border: Border.all(color: theme.panelBorder),
         borderRadius: BorderRadius.circular(8),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.5),
+            color: theme.tooltipShadow,
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -772,8 +992,8 @@ class _SprintGraphScreenState extends State<SprintGraphScreen>
         children: [
           Text(
             objectName,
-            style: const TextStyle(
-              color: kTextPrimary,
+            style: TextStyle(
+              color: theme.textPrimary,
               fontSize: 14,
               fontWeight: FontWeight.bold,
             ),
@@ -781,7 +1001,7 @@ class _SprintGraphScreenState extends State<SprintGraphScreen>
           const SizedBox(height: 4),
           Text(
             'Object entity -- reused in $count ${count == 1 ? 'story' : 'stories'}',
-            style: const TextStyle(color: kTextSecondary, fontSize: 12),
+            style: TextStyle(color: theme.textSecondary, fontSize: 12),
           ),
         ],
       ),
@@ -789,18 +1009,22 @@ class _SprintGraphScreenState extends State<SprintGraphScreen>
   }
 
   Widget _buildStartSprintPanel() {
-    int storiesCount = _selectedNodeKeys
+    final selectedVerbKeys = _selectedNodeKeys
         .where((k) => k.startsWith('verb_'))
-        .length;
+        .toList();
+    final selectedStoryIds = selectedVerbKeys
+        .map((k) => k.replaceFirst('verb_', ''))
+        .toList();
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
       decoration: BoxDecoration(
-        color: const Color(0xFF161B22),
+        color: theme.panelBg,
         borderRadius: BorderRadius.circular(30),
-        border: Border.all(color: kVerbBorder, width: 2),
+        border: Border.all(color: theme.verbBorder, width: 2),
         boxShadow: [
           BoxShadow(
-            color: kVerbBorder.withOpacity(0.3),
+            color: theme.verbBorder.withOpacity(0.3),
             blurRadius: 20,
             spreadRadius: 2,
             offset: const Offset(0, 4),
@@ -811,38 +1035,81 @@ class _SprintGraphScreenState extends State<SprintGraphScreen>
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            '${_selectedNodeKeys.length} Nodes Selected',
-            style: const TextStyle(
-              color: Colors.white,
+            '${selectedStoryIds.length} Stories Selected',
+            style: TextStyle(
+              color: theme.textPrimary,
               fontWeight: FontWeight.bold,
               fontSize: 16,
             ),
           ),
           const SizedBox(width: 20),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: kVerbBorder,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
+
+          PopupMenuButton<String>(
+            tooltip: 'Update Status',
+            onSelected: (newStatus) {
+              if (selectedStoryIds.isNotEmpty) {
+                _updateStoryStatus(selectedStoryIds, newStatus);
+              }
+            },
+            offset: const Offset(0, -140),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            color: theme.panelBg,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: theme.verbBorder,
                 borderRadius: BorderRadius.circular(20),
               ),
-            ),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Cập nhật trạng thái $storiesCount stories!'),
+              child: const Text(
+                'Update Status',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
                 ),
-              );
-              setState(() => _selectedNodeKeys.clear());
-            },
-            child: const Text(
-              'Update',
-              style: TextStyle(fontWeight: FontWeight.bold),
+              ),
             ),
+            itemBuilder: (context) => [
+              PopupMenuItem(
+                value: 'ToDo',
+                child: Row(
+                  children: [
+                    Icon(Icons.list_alt, color: theme.textSecondary),
+                    const SizedBox(width: 8),
+                    Text('ToDo', style: TextStyle(color: theme.textPrimary)),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'InProgress',
+                child: Row(
+                  children: [
+                    Icon(Icons.autorenew, color: theme.inProgressColor),
+                    const SizedBox(width: 8),
+                    Text(
+                      'InProgress',
+                      style: TextStyle(color: theme.textPrimary),
+                    ),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'Done',
+                child: Row(
+                  children: [
+                    Icon(Icons.check_circle, color: theme.doneColor),
+                    const SizedBox(width: 8),
+                    Text('Done', style: TextStyle(color: theme.textPrimary)),
+                  ],
+                ),
+              ),
+            ],
           ),
+
           const SizedBox(width: 8),
           IconButton(
-            icon: const Icon(Icons.close, color: kTextSecondary),
+            icon: Icon(Icons.close, color: theme.textSecondary),
             onPressed: () => setState(() => _selectedNodeKeys.clear()),
           ),
         ],
@@ -854,26 +1121,26 @@ class _SprintGraphScreenState extends State<SprintGraphScreen>
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFF161B22),
-        border: Border.all(color: const Color(0xFF30363D)),
+        color: theme.panelBg,
+        border: Border.all(color: theme.panelBorder),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'SPRINT S-V-O',
             style: TextStyle(
-              color: kTextSecondary,
+              color: theme.textSecondary,
               fontSize: 10,
               fontWeight: FontWeight.bold,
               letterSpacing: 1.5,
             ),
           ),
           const SizedBox(height: 10),
-          _legendItem(kSubjectBorder, 'Actor (S)', isCircle: true),
-          _legendItem(kObjectBorder, 'Object (O)', isCircle: false),
-          _legendItem(kVerbBorder, 'Action (V)', isCircle: true),
+          _legendItem(theme.subjectBorder, 'Actor (S)', isCircle: true),
+          _legendItem(theme.objectBorder, 'Object (O)', isCircle: false),
+          _legendItem(theme.verbBorder, 'Action (V)', isCircle: true),
         ],
       ),
     );
@@ -910,7 +1177,7 @@ class _SprintGraphScreenState extends State<SprintGraphScreen>
           const SizedBox(width: 8),
           Text(
             label,
-            style: const TextStyle(color: kTextSecondary, fontSize: 11),
+            style: TextStyle(color: theme.textSecondary, fontSize: 11),
           ),
         ],
       ),
@@ -937,10 +1204,12 @@ class _SprintGraphScreenState extends State<SprintGraphScreen>
               ? Icons.unfold_more
               : Icons.unfold_less,
           onPressed: () => setState(() {
-            if (expandedSubjects.length == _getUniqueSubjects(_stories).length)
+            if (expandedSubjects.length ==
+                _getUniqueSubjects(_stories).length) {
               expandedSubjects.clear();
-            else
+            } else {
               expandedSubjects.addAll(_getUniqueSubjects(_stories));
+            }
             _calculateLayout(_stories);
           }),
         ),
@@ -963,30 +1232,38 @@ class _SprintGraphScreenState extends State<SprintGraphScreen>
     return FloatingActionButton(
       heroTag: heroTag,
       mini: true,
-      backgroundColor: active ? kVerbBorder : const Color(0xFF161B22),
+      backgroundColor: active ? theme.verbBorder : theme.panelBg,
       elevation: 4,
       onPressed: onPressed,
-      child: Icon(icon, color: active ? Colors.white : kTextPrimary, size: 20),
+      child: Icon(
+        icon,
+        color: active ? Colors.white : theme.textPrimary,
+        size: 20,
+      ),
     );
   }
 }
 
-// --- PAINTERS TƯƠNG TỰ BÊN BACKLOG ---
-class DarkLinesPainter extends CustomPainter {
+// =============================================================================
+// GRAPH PAINTERS
+// =============================================================================
+class GraphLinesPainter extends CustomPainter {
   final Map<String, Offset> nodePositions;
   final Set<String> expandedSubjects;
   final List<SprintSvoStory> mockData;
   final Map<String, String> verbToTargetKey;
   final List<String> subjects;
   final String? hoveredKey;
+  final GraphTheme theme;
 
-  DarkLinesPainter({
+  GraphLinesPainter({
     required this.nodePositions,
     required this.expandedSubjects,
     required this.mockData,
     required this.verbToTargetKey,
     required this.subjects,
     this.hoveredKey,
+    required this.theme,
   });
 
   @override
@@ -1009,7 +1286,9 @@ class DarkLinesPainter extends CustomPainter {
             (verbToTargetKey[verbKey] != null &&
                 hoveredKey == verbToTargetKey[verbKey]);
         final paint = Paint()
-          ..color = isHighlighted ? kHighlightLine.withOpacity(0.9) : kLineColor
+          ..color = isHighlighted
+              ? theme.highlightLine.withOpacity(0.9)
+              : theme.lineColor
           ..strokeWidth = isHighlighted ? 2.0 : 1.0
           ..style = PaintingStyle.stroke;
 
@@ -1055,7 +1334,7 @@ class DarkLinesPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant DarkLinesPainter old) => true;
+  bool shouldRepaint(covariant GraphLinesPainter old) => true;
 }
 
 class ZoningPainter extends CustomPainter {
@@ -1064,6 +1343,7 @@ class ZoningPainter extends CustomPainter {
   final List<SprintSvoStory> mockData;
   final Function(String) isObjectASubject;
   final Function(String, String) makeObjectKey;
+  final GraphTheme theme;
 
   ZoningPainter({
     required this.nodePositions,
@@ -1071,13 +1351,14 @@ class ZoningPainter extends CustomPainter {
     required this.mockData,
     required this.isObjectASubject,
     required this.makeObjectKey,
+    required this.theme,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
     if (zonedSubjects.isEmpty) return;
     final paint = Paint()
-      ..color = kVerbBorder.withOpacity(0.8)
+      ..color = theme.verbBorder.withOpacity(0.8)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2.0;
 
@@ -1086,8 +1367,9 @@ class ZoningPainter extends CustomPainter {
       for (var s in stories) {
         if (!isObjectASubject(s.object)) {
           String objKey = makeObjectKey(s.object, s.status);
-          if (nodePositions.containsKey(objKey))
+          if (nodePositions.containsKey(objKey)) {
             _drawDashedCircle(canvas, nodePositions[objKey]!, 54, paint);
+          }
         }
       }
     }
@@ -1142,17 +1424,21 @@ class _GlowCirclePainter extends CustomPainter {
 
 class LassoPainter extends CustomPainter {
   final List<Offset> drawnPoints;
-  LassoPainter({required this.drawnPoints});
+  final GraphTheme theme;
+
+  LassoPainter({required this.drawnPoints, required this.theme});
+
   @override
   void paint(Canvas canvas, Size size) {
     if (drawnPoints.isEmpty) return;
     final path = Path()..moveTo(drawnPoints.first.dx, drawnPoints.first.dy);
-    for (int i = 1; i < drawnPoints.length; i++)
+    for (int i = 1; i < drawnPoints.length; i++) {
       path.lineTo(drawnPoints[i].dx, drawnPoints[i].dy);
+    }
     canvas.drawPath(
       path,
       Paint()
-        ..color = Colors.white70
+        ..color = theme.lassoColor
         ..style = PaintingStyle.stroke
         ..strokeWidth = 2.0,
     );

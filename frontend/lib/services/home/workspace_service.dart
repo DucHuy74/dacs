@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../../models/home/workspace_model.dart';
 import '../auth/auth_service.dart';
+import '../../models/backlog/member_model.dart';
 
 class WorkspaceService {
   static const String url = 'http://localhost:8080/api/workspace';
@@ -24,7 +25,6 @@ class WorkspaceService {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        // Kiểm tra code 1000 theo format JSON bạn cung cấp trước đó
         if (data['code'] == 1000) {
           final List<dynamic> results = data['result'];
           return results.map((e) => WorkspaceModel.fromJson(e)).toList();
@@ -80,6 +80,34 @@ class WorkspaceService {
     } catch (e) {
       print('Connection Error: $e');
       return null;
+    }
+  }
+
+  Future<List<MemberModel>> getWorkspaceMembers(String workspaceId) async {
+    try {
+      final token = await AuthService.instance.getValidAccessToken();
+      if (token == null) return [];
+
+      final response = await http.get(
+        Uri.parse('$url/$workspaceId/members'), 
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+          'x-api-key': dotenv.env['API_KEY'] ?? '',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['code'] == 1000) {
+          final List<dynamic> results = data['result'];
+          return results.map((e) => MemberModel.fromJson(e)).toList();
+        }
+      }
+      return [];
+    } catch (e) {
+      print('Error loading members: $e');
+      return [];
     }
   }
 }

@@ -134,7 +134,7 @@ class _SprintSectionState extends State<SprintSection> {
             ...doneSprints.map(
               (sprint) => SprintContainer(
                 sprint: sprint,
-                isCompleted: true, // Đánh dấu là đã hoàn thành để ẩn nút Start
+                isCompleted: true, 
                 onMoveStoryToSprint: widget.onMoveStoryToSprint,
                 onSprintStarted: widget.onSprintStarted,
               ),

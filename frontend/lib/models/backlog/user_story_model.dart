@@ -16,4 +16,24 @@ class UserStoryModel {
       status: json['status'] ?? 'ToDo',
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'storyText': storyText,
+      'status': status,
+    };
+  }
+
+  UserStoryModel copyWith({
+    String? id,
+    String? storyText,
+    String? status,
+  }) {
+    return UserStoryModel(
+      id: id ?? this.id,
+      storyText: storyText ?? this.storyText,
+      status: status ?? this.status,
+    );
+  }
 }
