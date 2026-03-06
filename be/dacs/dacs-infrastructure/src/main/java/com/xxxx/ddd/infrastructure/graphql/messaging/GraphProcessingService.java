@@ -80,21 +80,13 @@ DELETE oldRel
 
 WITH us
 
-//MERGE (actor:Actor {name:$actor})
-//MERGE (action:Action {name:$action})
-//MERGE (obj:Object {name:$object})
-//
-//MERGE (us)-[:HAS_ACTOR]->(actor)
-//MERGE (us)-[:PERFORMS]->(action)
-//MERGE (us)-[:TARGETS]->(obj)
-
 MERGE (actor:Actor {name:$actor})
+MERGE (action:Action {name:$action})
 MERGE (obj:Object {name:$object})
 
-MERGE (actor)-[:ACTION {name:$action, storyId:$id}]->(obj)
-
 MERGE (us)-[:HAS_ACTOR]->(actor)
-MERGE (us)-[:HAS_OBJECT]->(obj)
+MERGE (us)-[:PERFORMS]->(action)
+MERGE (us)-[:TARGETS]->(obj)
 """)
                 .bindAll(params)
                 .run();
