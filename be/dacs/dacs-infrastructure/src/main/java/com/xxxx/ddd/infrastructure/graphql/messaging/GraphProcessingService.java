@@ -74,18 +74,27 @@ FOREACH (_ IN CASE WHEN sprintId IS NOT NULL THEN [1] ELSE [] END |
 // ================= SEMANTIC GRAPH =================
 WITH us
 
-OPTIONAL MATCH (us)-[oldRel:HAS_ACTOR|PERFORMS|TARGETS]->()
+OPTIONAL MATCH (us)-[oldRel]->()
+WHERE type(oldRel) IN ['HAS_ACTOR','PERFORMS','TARGETS']
 DELETE oldRel
 
 WITH us
 
+//MERGE (actor:Actor {name:$actor})
+//MERGE (action:Action {name:$action})
+//MERGE (obj:Object {name:$object})
+//
+//MERGE (us)-[:HAS_ACTOR]->(actor)
+//MERGE (us)-[:PERFORMS]->(action)
+//MERGE (us)-[:TARGETS]->(obj)
+
 MERGE (actor:Actor {name:$actor})
-MERGE (action:Action {name:$action})
 MERGE (obj:Object {name:$object})
 
+MERGE (actor)-[:ACTION {name:$action, storyId:$id}]->(obj)
+
 MERGE (us)-[:HAS_ACTOR]->(actor)
-MERGE (us)-[:PERFORMS]->(action)
-MERGE (us)-[:TARGETS]->(obj)
+MERGE (us)-[:HAS_OBJECT]->(obj)
 """)
                 .bindAll(params)
                 .run();
