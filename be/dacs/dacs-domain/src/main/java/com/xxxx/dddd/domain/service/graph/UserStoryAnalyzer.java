@@ -22,7 +22,7 @@ public class UserStoryAnalyzer {
             Map.entry("LOGOUT", List.of("logout", "log out", "sign out")),
 
             Map.entry("REGISTER", List.of("register", "sign up", "create account")),
-            Map.entry("RESET_PASSWORD", List.of("reset password", "forgot password", "recover password")),
+            Map.entry("RESET", List.of("reset password", "forgot password", "recover password")),
 
             Map.entry("CREATE", List.of("create", "add", "insert", "make", "write", "generate")),
             Map.entry("UPDATE", List.of("edit", "update", "modify", "change")),
@@ -120,7 +120,13 @@ public class UserStoryAnalyzer {
                 // .* : bat ki ky tu nao, xh bnh lan cx dc
                 // \b: word boundary: ranh gioi tu, dam bảo log: ok, login thì khác
                 // Pattern.quote(keyword): neu co ky tu dac biet thi sẽ escape toan bo keyword thanh literal text
-                if (text.matches(".*\\b" + Pattern.quote(keyword) + "\\b.*")) {
+//                if (text.matches(".*\\b" + Pattern.quote(keyword) + "\\b.*")) {
+//                    return entry.getKey();
+//                }
+                if (Pattern.compile("\\b" + Pattern.quote(keyword) + "\\b")
+                        .matcher(text)
+                        .find()) {
+
                     return entry.getKey();
                 }
             }
@@ -131,15 +137,18 @@ public class UserStoryAnalyzer {
 
     private String detectObject(String text, String action) {
 
-        String object = detectFromDictionary(text, OBJECT_KEYWORDS, "unknown");
-
-        // fallback rule cho login/register
-        if ("unknown".equals(object)) {
-            if ("LOGIN".equals(action) || "REGISTER".equals(action)) {
-                return "system";
-            }
+        if ("LOGIN".equals(action)) {
+            return "system";
         }
 
-        return object;
+        if ("REGISTER".equals(action)) {
+            return "account";
+        }
+
+        if ("RESET".equals(action)) {
+            return "password";
+        }
+
+        return detectFromDictionary(text, OBJECT_KEYWORDS, "unknown");
     }
 }
