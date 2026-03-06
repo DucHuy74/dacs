@@ -1,3 +1,4 @@
+
 package com.xxxx.dddd.domain.service.graph;
 
 import com.xxxx.dddd.domain.model.graph.AnalyzedStory;
@@ -98,14 +99,26 @@ public class UserStoryAnalyzer {
             Map.entry("tag", List.of("tag", "label", "category"))
     );
 
+    private String normalize(String text) {
 
+        text = text.toLowerCase();
+
+        // bỏ dấu câu
+        text = text.replaceAll("[^a-z0-9 ]", " ");
+
+        // nhiều space -> 1 space
+        text = text.replaceAll("\\s+", " ").trim();
+
+        return text;
+    }
 
     public AnalyzedStory analyze(String storyText) {
-        String lower = storyText.toLowerCase();
 
-        String actor = detectFromDictionary(lower, ACTOR_KEYWORDS, "unknown");
-        String action = detectFromDictionary(lower, ACTION_KEYWORDS, "UNKNOWN");
-        String object = detectObject(lower, action);
+        String normalized = normalize(storyText);
+
+        String actor = detectFromDictionary(normalized, ACTOR_KEYWORDS, "unknown");
+        String action = detectFromDictionary(normalized, ACTION_KEYWORDS, "UNKNOWN");
+        String object = detectObject(normalized, action);
 
         return new AnalyzedStory(actor, action, object);
     }
@@ -115,14 +128,14 @@ public class UserStoryAnalyzer {
                                         String defaultValue) {
 
         for (var entry : dictionary.entrySet()) {
-            for (String keyword : entry.getValue()) {
-                //kiem tra toan bo chuoi
-                // .* : bat ki ky tu nao, xh bnh lan cx dc
-                // \b: word boundary: ranh gioi tu, dam bảo log: ok, login thì khác
-                // Pattern.quote(keyword): neu co ky tu dac biet thi sẽ escape toan bo keyword thanh literal text
-//                if (text.matches(".*\\b" + Pattern.quote(keyword) + "\\b.*")) {
-//                    return entry.getKey();
-//                }
+
+            List<String> keywords = entry.getValue()
+                    .stream()
+                    .sorted((a, b) -> Integer.compare(b.length(), a.length()))
+                    .toList();
+
+            for (String keyword : keywords) {
+
                 if (Pattern.compile("\\b" + Pattern.quote(keyword) + "\\b")
                         .matcher(text)
                         .find()) {
@@ -137,16 +150,27 @@ public class UserStoryAnalyzer {
 
     private String detectObject(String text, String action) {
 
-        if ("LOGIN".equals(action)) {
-            return "system";
-        }
+        switch (action) {
 
-        if ("REGISTER".equals(action)) {
-            return "account";
-        }
+            case "LOGIN":
+                return "system";
 
-        if ("RESET".equals(action)) {
-            return "password";
+            case "REGISTER":
+                return "account";
+
+            case "RESET":
+                return "password";
+
+            case "DELETE":
+                if (text.contains("account")) return "account";
+                if (text.contains("note")) return "note";
+                if (text.contains("user")) return "user";
+                break;
+
+            case "UPDATE":
+                if (text.contains("note")) return "note";
+                if (text.contains("profile")) return "profile";
+                break;
         }
 
         return detectFromDictionary(text, OBJECT_KEYWORDS, "unknown");
