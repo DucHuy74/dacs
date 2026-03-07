@@ -150,7 +150,7 @@ class _SprintGraphScreenState extends State<SprintGraphScreen>
 
   List<SprintSvoStory> _stories = [];
   Map<String, Offset> nodePositions = {};
-  Map<String, String> verbToTargetKey = {};
+  Set<String> edges = {};
 
   Set<String> expandedSubjects = {};
   Set<String> zonedSubjects = {};
@@ -254,56 +254,57 @@ class _SprintGraphScreenState extends State<SprintGraphScreen>
     return _getUniqueSubjects(stories).contains(objectName);
   }
 
-  String _makeObjectKey(String name, String status) => "obj_${name}_$status";
+  String _makeObjectKey(String name) => "obj_$name";
 
   void _calculateLayout(List<SprintSvoStory> stories) {
     nodePositions.clear();
-    verbToTargetKey.clear();
+    edges.clear();
 
     List<String> subjects = _getUniqueSubjects(stories);
     const double subjectX = 150;
     const double verbX = 420;
     const double objectX = 720;
+
     double currentSubjectY = 140;
-    const double subjectSpacing = 160;
-    const double verbSpacing = 80;
+    const double spacing = 120;
 
     for (var subName in subjects) {
       nodePositions["sub_$subName"] = Offset(subjectX, currentSubjectY);
-      currentSubjectY += subjectSpacing;
+      currentSubjectY += spacing;
     }
 
-    double globalVerbY = 140;
-    for (var subName in subjects) {
-      if (!expandedSubjects.contains(subName)) continue;
-      final filteredStories = stories
-          .where((e) => e.subject == subName)
-          .toList();
-      for (var story in filteredStories) {
-        String verbKey = "verb_${story.id}";
-        nodePositions[verbKey] = Offset(verbX, globalVerbY);
-        String targetKey = _isObjectASubject(story.object, stories)
-            ? "sub_${story.object}"
-            : _makeObjectKey(story.object, story.status);
-        verbToTargetKey[verbKey] = targetKey;
-        globalVerbY += verbSpacing;
+    Set<String> uniqueVerbs = {};
+    Set<String> uniqueObjects = {};
+
+    for (var story in stories) {
+      if (!expandedSubjects.contains(story.subject)) continue;
+
+      String subKey = "sub_${story.subject}";
+      String verbKey = "verb_${story.verb}";
+
+      String targetKey = _isObjectASubject(story.object, stories)
+          ? "sub_${story.object}"
+          : _makeObjectKey(story.object);
+
+      uniqueVerbs.add(verbKey);
+      if (!targetKey.startsWith("sub_")) {
+        uniqueObjects.add(targetKey);
       }
+
+      edges.add("$subKey|$verbKey");
+      edges.add("$verbKey|$targetKey");
     }
 
-    Map<String, List<String>> targetToVerbs = {};
-    for (var entry in verbToTargetKey.entries) {
-      if (entry.value.startsWith("sub_")) continue;
-      targetToVerbs.putIfAbsent(entry.value, () => []).add(entry.key);
+    double currentVerbY = 140;
+    for (var verbKey in uniqueVerbs) {
+      nodePositions[verbKey] = Offset(verbX, currentVerbY);
+      currentVerbY += spacing;
     }
 
-    for (var targetKey in targetToVerbs.keys) {
-      List<String> verbIds = targetToVerbs[targetKey]!;
-      double totalY = verbIds
-          .where((v) => nodePositions.containsKey(v))
-          .map((v) => nodePositions[v]!.dy)
-          .fold(0.0, (a, b) => a + b);
-      double avgY = totalY / verbIds.length;
-      nodePositions[targetKey] = Offset(objectX, avgY);
+    double currentObjY = 140;
+    for (var objKey in uniqueObjects) {
+      nodePositions[objKey] = Offset(objectX, currentObjY);
+      currentObjY += spacing;
     }
   }
 
@@ -319,6 +320,29 @@ class _SprintGraphScreenState extends State<SprintGraphScreen>
         nodePositions[key] = other + push;
       }
     }
+  }
+
+  Set<String> _getHighlightedEdges(List<SprintSvoStory> stories) {
+    if (_hoveredNodeKey == null) return {};
+    Set<String> highlighted = {};
+
+    for (var story in stories) {
+      if (!expandedSubjects.contains(story.subject)) continue;
+
+      String subKey = "sub_${story.subject}";
+      String verbKey = "verb_${story.verb}";
+      String targetKey = _isObjectASubject(story.object, stories)
+          ? "sub_${story.object}"
+          : _makeObjectKey(story.object);
+
+      if (_hoveredNodeKey == subKey ||
+          _hoveredNodeKey == verbKey ||
+          _hoveredNodeKey == targetKey) {
+        highlighted.add("$subKey|$verbKey");
+        highlighted.add("$verbKey|$targetKey");
+      }
+    }
+    return highlighted;
   }
 
   void _onLassoPanStart(DragStartDetails details) {
@@ -373,14 +397,12 @@ class _SprintGraphScreenState extends State<SprintGraphScreen>
     );
 
     bool allSuccess = true;
-
-    // Chuyển đổi chuỗi String sang Enum trước khi gọi API
     SprintStatus enumStatus = _mapStringToSprintStatus(newStatus);
 
     for (String id in storyIds) {
       final success = await _userStoryService.updateUserStoryStatus(
         userStoryId: id,
-        status: enumStatus, // Truyền Enum thay vì String
+        status: enumStatus,
       );
 
       if (success) {
@@ -394,8 +416,7 @@ class _SprintGraphScreenState extends State<SprintGraphScreen>
               subject: old.subject,
               verb: old.verb,
               object: old.object,
-              status:
-                  newStatus, // Trên UI (SprintSvoStory) bạn vẫn đang dùng String, nên giữ nguyên newStatus
+              status: newStatus,
             );
           }
         });
@@ -613,6 +634,8 @@ class _SprintGraphScreenState extends State<SprintGraphScreen>
 
   @override
   Widget build(BuildContext context) {
+    Set<String> highlightedEdges = _getHighlightedEdges(_stories);
+
     return Scaffold(
       backgroundColor: theme.bgColor,
       appBar: AppBar(
@@ -661,11 +684,8 @@ class _SprintGraphScreenState extends State<SprintGraphScreen>
                               size: const Size(2500, 2500),
                               painter: GraphLinesPainter(
                                 nodePositions: nodePositions,
-                                expandedSubjects: expandedSubjects,
-                                mockData: _stories,
-                                verbToTargetKey: verbToTargetKey,
-                                subjects: _getUniqueSubjects(_stories),
-                                hoveredKey: _hoveredNodeKey,
+                                edges: edges,
+                                highlightedEdges: highlightedEdges,
                                 theme: theme,
                               ),
                             ),
@@ -678,8 +698,7 @@ class _SprintGraphScreenState extends State<SprintGraphScreen>
                               mockData: _stories,
                               isObjectASubject: (obj) =>
                                   _isObjectASubject(obj, _stories),
-                              makeObjectKey: (name, status) =>
-                                  _makeObjectKey(name, status),
+                              makeObjectKey: _makeObjectKey,
                               theme: theme,
                             ),
                           ),
@@ -712,35 +731,36 @@ class _SprintGraphScreenState extends State<SprintGraphScreen>
 
   List<Widget> _buildNodeWidgets() {
     List<Widget> widgets = [];
-    List<String> subjects = _getUniqueSubjects(_stories);
+    Set<String> renderedKeys = {};
 
-    for (var subName in subjects) {
-      String key = "sub_$subName";
-      if (nodePositions.containsKey(key)) {
-        widgets.add(_buildNode(key, subName, NodeType.subject, null));
+    SprintSvoStory? findRepresentativeStory(String text, bool isVerb) {
+      try {
+        return _stories.firstWhere(
+          (s) => isVerb ? s.verb == text : s.object == text,
+        );
+      } catch (e) {
+        return null;
       }
     }
 
-    for (var subName in expandedSubjects) {
-      final subStories = _stories.where((e) => e.subject == subName).toList();
-      for (var s in subStories) {
-        String verbKey = "verb_${s.id}";
-        if (nodePositions.containsKey(verbKey)) {
-          widgets.add(_buildNode(verbKey, s.verb, NodeType.verb, s));
-        }
+    for (var key in nodePositions.keys) {
+      if (renderedKeys.contains(key)) continue;
+      renderedKeys.add(key);
+
+      if (key.startsWith("sub_")) {
+        String name = key.replaceFirst("sub_", "");
+        widgets.add(_buildNode(key, name, NodeType.subject, null));
+      } else if (key.startsWith("verb_")) {
+        String name = key.replaceFirst("verb_", "");
+        SprintSvoStory? repStory = findRepresentativeStory(name, true);
+        widgets.add(_buildNode(key, name, NodeType.verb, repStory));
+      } else if (key.startsWith("obj_")) {
+        String name = key.replaceFirst("obj_", "");
+        SprintSvoStory? repStory = findRepresentativeStory(name, false);
+        widgets.add(_buildNode(key, name, NodeType.object, repStory));
       }
     }
 
-    Set<String> renderedObjectKeys = {};
-    for (var story in _stories) {
-      if (_isObjectASubject(story.object, _stories)) continue;
-      String objKey = _makeObjectKey(story.object, story.status);
-      if (!renderedObjectKeys.contains(objKey) &&
-          nodePositions.containsKey(objKey)) {
-        renderedObjectKeys.add(objKey);
-        widgets.add(_buildNode(objKey, story.object, NodeType.object, story));
-      }
-    }
     return widgets;
   }
 
@@ -1012,9 +1032,17 @@ class _SprintGraphScreenState extends State<SprintGraphScreen>
     final selectedVerbKeys = _selectedNodeKeys
         .where((k) => k.startsWith('verb_'))
         .toList();
-    final selectedStoryIds = selectedVerbKeys
+    final selectedVerbNames = selectedVerbKeys
         .map((k) => k.replaceFirst('verb_', ''))
         .toList();
+
+    List<String> selectedStoryIds = [];
+    for (var verbName in selectedVerbNames) {
+      selectedStoryIds.addAll(
+        _stories.where((s) => s.verb == verbName).map((s) => s.id),
+      );
+    }
+    selectedStoryIds = selectedStoryIds.toSet().toList();
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
@@ -1249,88 +1277,52 @@ class _SprintGraphScreenState extends State<SprintGraphScreen>
 // =============================================================================
 class GraphLinesPainter extends CustomPainter {
   final Map<String, Offset> nodePositions;
-  final Set<String> expandedSubjects;
-  final List<SprintSvoStory> mockData;
-  final Map<String, String> verbToTargetKey;
-  final List<String> subjects;
-  final String? hoveredKey;
+  final Set<String> edges;
+  final Set<String> highlightedEdges;
   final GraphTheme theme;
 
   GraphLinesPainter({
     required this.nodePositions,
-    required this.expandedSubjects,
-    required this.mockData,
-    required this.verbToTargetKey,
-    required this.subjects,
-    this.hoveredKey,
+    required this.edges,
+    required this.highlightedEdges,
     required this.theme,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
-    for (var subName in subjects) {
-      if (!expandedSubjects.contains(subName)) continue;
-      String subKey = "sub_$subName";
-      if (!nodePositions.containsKey(subKey)) continue;
+    for (var edge in edges) {
+      final parts = edge.split('|');
+      if (parts.length != 2) continue;
 
-      Offset subCenter = nodePositions[subKey]!;
-      final stories = mockData.where((e) => e.subject == subName).toList();
+      final fromKey = parts[0];
+      final toKey = parts[1];
 
-      for (var s in stories) {
-        String verbKey = "verb_${s.id}";
-        if (!nodePositions.containsKey(verbKey)) continue;
-        Offset verbCenter = nodePositions[verbKey]!;
-        bool isHighlighted =
-            hoveredKey == verbKey ||
-            hoveredKey == subKey ||
-            (verbToTargetKey[verbKey] != null &&
-                hoveredKey == verbToTargetKey[verbKey]);
-        final paint = Paint()
-          ..color = isHighlighted
-              ? theme.highlightLine.withOpacity(0.9)
-              : theme.lineColor
-          ..strokeWidth = isHighlighted ? 2.0 : 1.0
-          ..style = PaintingStyle.stroke;
+      if (!nodePositions.containsKey(fromKey) ||
+          !nodePositions.containsKey(toKey))
+        continue;
 
-        final mid1 = Offset(
-          (subCenter.dx + verbCenter.dx) / 2,
-          (subCenter.dy + verbCenter.dy) / 2,
-        );
-        canvas.drawPath(
-          Path()
-            ..moveTo(subCenter.dx, subCenter.dy)
-            ..quadraticBezierTo(
-              mid1.dx,
-              subCenter.dy,
-              verbCenter.dx,
-              verbCenter.dy,
-            ),
-          paint,
-        );
+      Offset fromCenter = nodePositions[fromKey]!;
+      Offset toCenter = nodePositions[toKey]!;
 
-        if (verbToTargetKey.containsKey(verbKey)) {
-          String targetKey = verbToTargetKey[verbKey]!;
-          if (nodePositions.containsKey(targetKey)) {
-            Offset objCenter = nodePositions[targetKey]!;
-            final mid2 = Offset(
-              (verbCenter.dx + objCenter.dx) / 2,
-              (verbCenter.dy + objCenter.dy) / 2,
-            );
-            canvas.drawPath(
-              Path()
-                ..moveTo(verbCenter.dx, verbCenter.dy)
-                ..quadraticBezierTo(
-                  mid2.dx,
-                  verbCenter.dy,
-                  objCenter.dx,
-                  objCenter.dy,
-                ),
-              paint,
-            );
-          }
-        }
-      }
+      bool isHighlighted = highlightedEdges.contains(edge);
+
+      final paint = Paint()
+        ..color = isHighlighted
+            ? theme.highlightLine.withOpacity(0.9)
+            : theme.lineColor
+        ..strokeWidth = isHighlighted ? 2.5 : 1.0
+        ..style = PaintingStyle.stroke;
+
+      _drawCurvedLine(canvas, fromCenter, toCenter, paint);
     }
+  }
+
+  void _drawCurvedLine(Canvas canvas, Offset from, Offset to, Paint paint) {
+    final mid = Offset((from.dx + to.dx) / 2, (from.dy + to.dy) / 2);
+    final path = Path()
+      ..moveTo(from.dx, from.dy)
+      ..quadraticBezierTo(mid.dx, from.dy, to.dx, to.dy);
+    canvas.drawPath(path, paint);
   }
 
   @override
@@ -1342,7 +1334,7 @@ class ZoningPainter extends CustomPainter {
   final Set<String> zonedSubjects;
   final List<SprintSvoStory> mockData;
   final Function(String) isObjectASubject;
-  final Function(String, String) makeObjectKey;
+  final Function(String) makeObjectKey;
   final GraphTheme theme;
 
   ZoningPainter({
@@ -1366,7 +1358,7 @@ class ZoningPainter extends CustomPainter {
       final stories = mockData.where((e) => e.subject == subName).toList();
       for (var s in stories) {
         if (!isObjectASubject(s.object)) {
-          String objKey = makeObjectKey(s.object, s.status);
+          String objKey = makeObjectKey(s.object);
           if (nodePositions.containsKey(objKey)) {
             _drawDashedCircle(canvas, nodePositions[objKey]!, 54, paint);
           }
