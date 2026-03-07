@@ -145,7 +145,7 @@ class _BacklogGraphScreenContent extends StatefulWidget {
 class _BacklogGraphScreenContentState extends State<_BacklogGraphScreenContent>
     with SingleTickerProviderStateMixin {
   Map<String, Offset> nodePositions = {};
-  Map<String, String> verbToTargetKey = {};
+  Set<String> edges = {};
 
   Set<String> expandedSubjects = {};
   Set<String> zonedSubjects = {};
@@ -204,57 +204,57 @@ class _BacklogGraphScreenContentState extends State<_BacklogGraphScreenContent>
     return _getUniqueSubjects(stories).contains(objectName);
   }
 
-  String _makeObjectKey(String name, USStatus status) =>
-      "obj_${name}_${status.name}";
+  String _makeObjectKey(String name) => "obj_$name";
 
   void _calculateLayout(List<AnalyzedStory> stories) {
     nodePositions.clear();
-    verbToTargetKey.clear();
+    edges.clear();
 
     List<String> subjects = _getUniqueSubjects(stories);
     const double subjectX = 150;
     const double verbX = 420;
     const double objectX = 720;
+
     double currentSubjectY = 140;
-    const double subjectSpacing = 160;
-    const double verbSpacing = 80;
+    const double spacing = 120;
 
     for (var subName in subjects) {
       nodePositions["sub_$subName"] = Offset(subjectX, currentSubjectY);
-      currentSubjectY += subjectSpacing;
+      currentSubjectY += spacing;
     }
 
-    double globalVerbY = 140;
-    for (var subName in subjects) {
-      if (!expandedSubjects.contains(subName)) continue;
-      final filteredStories = stories
-          .where((e) => e.subject == subName)
-          .toList();
-      for (var story in filteredStories) {
-        String verbKey = "verb_${story.id}";
-        nodePositions[verbKey] = Offset(verbX, globalVerbY);
-        String targetKey = _isObjectASubject(story.object, stories)
-            ? "sub_${story.object}"
-            : _makeObjectKey(story.object, story.status);
-        verbToTargetKey[verbKey] = targetKey;
-        globalVerbY += verbSpacing;
+    Set<String> uniqueVerbs = {};
+    Set<String> uniqueObjects = {};
+
+    for (var story in stories) {
+      if (!expandedSubjects.contains(story.subject)) continue;
+
+      String subKey = "sub_${story.subject}";
+      String verbKey = "verb_${story.verb}";
+
+      String targetKey = _isObjectASubject(story.object, stories)
+          ? "sub_${story.object}"
+          : _makeObjectKey(story.object);
+
+      uniqueVerbs.add(verbKey);
+      if (!targetKey.startsWith("sub_")) {
+        uniqueObjects.add(targetKey);
       }
+
+      edges.add("$subKey|$verbKey");
+      edges.add("$verbKey|$targetKey");
     }
 
-    Map<String, List<String>> targetToVerbs = {};
-    for (var entry in verbToTargetKey.entries) {
-      if (entry.value.startsWith("sub_")) continue;
-      targetToVerbs.putIfAbsent(entry.value, () => []).add(entry.key);
+    double currentVerbY = 140;
+    for (var verbKey in uniqueVerbs) {
+      nodePositions[verbKey] = Offset(verbX, currentVerbY);
+      currentVerbY += spacing;
     }
 
-    for (var targetKey in targetToVerbs.keys) {
-      List<String> verbIds = targetToVerbs[targetKey]!;
-      double totalY = verbIds
-          .where((v) => nodePositions.containsKey(v))
-          .map((v) => nodePositions[v]!.dy)
-          .fold(0.0, (a, b) => a + b);
-      double avgY = totalY / verbIds.length;
-      nodePositions[targetKey] = Offset(objectX, avgY);
+    double currentObjY = 140;
+    for (var objKey in uniqueObjects) {
+      nodePositions[objKey] = Offset(objectX, currentObjY);
+      currentObjY += spacing;
     }
   }
 
@@ -274,6 +274,31 @@ class _BacklogGraphScreenContentState extends State<_BacklogGraphScreenContent>
 
   int _countStoriesForObject(String objectName, List<AnalyzedStory> stories) {
     return stories.where((s) => s.object == objectName).length;
+  }
+
+  // --- TRUY VẾT HIGHLIGHT TOÀN BỘ S-V-O ---
+  Set<String> _getHighlightedEdges(List<AnalyzedStory> stories) {
+    if (_hoveredNodeKey == null) return {};
+    Set<String> highlighted = {};
+
+    for (var story in stories) {
+      if (!expandedSubjects.contains(story.subject)) continue;
+
+      String subKey = "sub_${story.subject}";
+      String verbKey = "verb_${story.verb}";
+      String targetKey = _isObjectASubject(story.object, stories)
+          ? "sub_${story.object}"
+          : _makeObjectKey(story.object);
+
+      // Nếu Node đang hover nằm trong Story này, highlight TOÀN BỘ dây của Story đó
+      if (_hoveredNodeKey == subKey ||
+          _hoveredNodeKey == verbKey ||
+          _hoveredNodeKey == targetKey) {
+        highlighted.add("$subKey|$verbKey");
+        highlighted.add("$verbKey|$targetKey");
+      }
+    }
+    return highlighted;
   }
 
   // --- LASSO GESTURE HANDLERS ---
@@ -305,13 +330,16 @@ class _BacklogGraphScreenContentState extends State<_BacklogGraphScreenContent>
     });
   }
 
-  int get _selectedStoriesCount {
+  int get _selectedVerbsCount {
     return _selectedNodeKeys.where((k) => k.startsWith('verb_')).length;
   }
 
   @override
   Widget build(BuildContext context) {
     final vm = context.watch<GraphViewModel>();
+
+    // Lấy danh sách các dây cần highlight dựa trên Story thực tế
+    Set<String> highlightedEdges = _getHighlightedEdges(vm.stories);
 
     return Scaffold(
       backgroundColor: theme.bgColor,
@@ -365,11 +393,9 @@ class _BacklogGraphScreenContentState extends State<_BacklogGraphScreenContent>
                               size: const Size(2500, 2500),
                               painter: GraphLinesPainter(
                                 nodePositions: nodePositions,
-                                expandedSubjects: expandedSubjects,
-                                mockData: vm.stories,
-                                verbToTargetKey: verbToTargetKey,
-                                subjects: _getUniqueSubjects(vm.stories),
-                                hoveredKey: _hoveredNodeKey,
+                                edges: edges,
+                                highlightedEdges:
+                                    highlightedEdges, // Chuyền vào đây
                                 theme: theme,
                               ),
                             ),
@@ -416,7 +442,7 @@ class _BacklogGraphScreenContentState extends State<_BacklogGraphScreenContent>
   }
 
   Widget _buildStartSprintPanel() {
-    int storiesCount = _selectedStoriesCount;
+    int verbsCount = _selectedVerbsCount;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
       decoration: BoxDecoration(
@@ -436,7 +462,7 @@ class _BacklogGraphScreenContentState extends State<_BacklogGraphScreenContent>
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            '${_selectedNodeKeys.length} Nodes Selected ($storiesCount Stories)',
+            '${_selectedNodeKeys.length} Nodes Selected ($verbsCount Actions)',
             style: TextStyle(
               color: theme.textPrimary,
               fontWeight: FontWeight.bold,
@@ -455,7 +481,7 @@ class _BacklogGraphScreenContentState extends State<_BacklogGraphScreenContent>
             onPressed: () {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text('Bắt đầu Sprint với $storiesCount stories!'),
+                  content: Text('Bắt đầu Sprint với các hành động đã chọn!'),
                 ),
               );
               setState(() {
@@ -565,35 +591,33 @@ class _BacklogGraphScreenContentState extends State<_BacklogGraphScreenContent>
 
   List<Widget> _buildNodeWidgets(List<AnalyzedStory> stories) {
     List<Widget> widgets = [];
-    List<String> subjects = _getUniqueSubjects(stories);
+    Set<String> renderedKeys = {};
 
-    for (var subName in subjects) {
-      String key = "sub_$subName";
-      if (nodePositions.containsKey(key)) {
-        widgets.add(_buildNode(key, subName, NodeType.subject, null, stories));
-      }
-    }
-
-    for (var subName in expandedSubjects) {
-      final subStories = stories.where((e) => e.subject == subName).toList();
-      for (var s in subStories) {
-        String verbKey = "verb_${s.id}";
-        if (nodePositions.containsKey(verbKey)) {
-          widgets.add(_buildNode(verbKey, s.verb, NodeType.verb, s, stories));
-        }
-      }
-    }
-
-    Set<String> renderedObjectKeys = {};
-    for (var story in stories) {
-      if (_isObjectASubject(story.object, stories)) continue;
-      String objKey = _makeObjectKey(story.object, story.status);
-      if (!renderedObjectKeys.contains(objKey) &&
-          nodePositions.containsKey(objKey)) {
-        renderedObjectKeys.add(objKey);
-        widgets.add(
-          _buildNode(objKey, story.object, NodeType.object, story, stories),
+    AnalyzedStory? findRepresentativeStory(String text, bool isVerb) {
+      try {
+        return stories.firstWhere(
+          (s) => isVerb ? s.verb == text : s.object == text,
         );
+      } catch (e) {
+        return null;
+      }
+    }
+
+    for (var key in nodePositions.keys) {
+      if (renderedKeys.contains(key)) continue;
+      renderedKeys.add(key);
+
+      if (key.startsWith("sub_")) {
+        String name = key.replaceFirst("sub_", "");
+        widgets.add(_buildNode(key, name, NodeType.subject, null, stories));
+      } else if (key.startsWith("verb_")) {
+        String name = key.replaceFirst("verb_", "");
+        AnalyzedStory? repStory = findRepresentativeStory(name, true);
+        widgets.add(_buildNode(key, name, NodeType.verb, repStory, stories));
+      } else if (key.startsWith("obj_")) {
+        String name = key.replaceFirst("obj_", "");
+        AnalyzedStory? repStory = findRepresentativeStory(name, false);
+        widgets.add(_buildNode(key, name, NodeType.object, repStory, stories));
       }
     }
 
@@ -1054,61 +1078,44 @@ class _BacklogGraphScreenContentState extends State<_BacklogGraphScreenContent>
 // =============================================================================
 class GraphLinesPainter extends CustomPainter {
   final Map<String, Offset> nodePositions;
-  final Set<String> expandedSubjects;
-  final List<AnalyzedStory> mockData;
-  final Map<String, String> verbToTargetKey;
-  final List<String> subjects;
-  final String? hoveredKey;
+  final Set<String> edges;
+  final Set<String> highlightedEdges; // Thay đổi từ hoveredKey sang Set cụ thể
   final GraphTheme theme;
 
   GraphLinesPainter({
     required this.nodePositions,
-    required this.expandedSubjects,
-    required this.mockData,
-    required this.verbToTargetKey,
-    required this.subjects,
-    this.hoveredKey,
+    required this.edges,
+    required this.highlightedEdges,
     required this.theme,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
-    for (var subName in subjects) {
-      if (!expandedSubjects.contains(subName)) continue;
-      String subKey = "sub_$subName";
-      if (!nodePositions.containsKey(subKey)) continue;
+    for (var edge in edges) {
+      final parts = edge.split('|');
+      if (parts.length != 2) continue;
 
-      Offset subCenter = nodePositions[subKey]!;
-      final stories = mockData.where((e) => e.subject == subName).toList();
+      final fromKey = parts[0];
+      final toKey = parts[1];
 
-      for (var s in stories) {
-        String verbKey = "verb_${s.id}";
-        if (!nodePositions.containsKey(verbKey)) continue;
+      if (!nodePositions.containsKey(fromKey) ||
+          !nodePositions.containsKey(toKey))
+        continue;
 
-        Offset verbCenter = nodePositions[verbKey]!;
-        bool isHighlighted =
-            hoveredKey == verbKey ||
-            hoveredKey == subKey ||
-            (verbToTargetKey[verbKey] != null &&
-                hoveredKey == verbToTargetKey[verbKey]);
+      Offset fromCenter = nodePositions[fromKey]!;
+      Offset toCenter = nodePositions[toKey]!;
 
-        final paint = Paint()
-          ..color = isHighlighted
-              ? theme.highlightLine.withOpacity(0.9)
-              : theme.lineColor
-          ..strokeWidth = isHighlighted ? 2.0 : 1.0
-          ..style = PaintingStyle.stroke;
+      // Kiểm tra dây này có thuộc list highlight không
+      bool isHighlighted = highlightedEdges.contains(edge);
 
-        _drawCurvedLine(canvas, subCenter, verbCenter, paint);
+      final paint = Paint()
+        ..color = isHighlighted
+            ? theme.highlightLine.withOpacity(0.9)
+            : theme.lineColor
+        ..strokeWidth = isHighlighted ? 2.5 : 1.0
+        ..style = PaintingStyle.stroke;
 
-        if (verbToTargetKey.containsKey(verbKey)) {
-          String targetKey = verbToTargetKey[verbKey]!;
-          if (nodePositions.containsKey(targetKey)) {
-            Offset objCenter = nodePositions[targetKey]!;
-            _drawCurvedLine(canvas, verbCenter, objCenter, paint);
-          }
-        }
-      }
+      _drawCurvedLine(canvas, fromCenter, toCenter, paint);
     }
   }
 
@@ -1121,8 +1128,7 @@ class GraphLinesPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant GraphLinesPainter old) =>
-      old.hoveredKey != hoveredKey || true;
+  bool shouldRepaint(covariant GraphLinesPainter old) => true;
 }
 
 class ZoningPainter extends CustomPainter {
@@ -1130,7 +1136,7 @@ class ZoningPainter extends CustomPainter {
   final Set<String> zonedSubjects;
   final List<AnalyzedStory> mockData;
   final Function(String) isObjectASubject;
-  final Function(String, USStatus) makeObjectKey;
+  final Function(String) makeObjectKey;
   final GraphTheme theme;
 
   ZoningPainter({
@@ -1154,7 +1160,7 @@ class ZoningPainter extends CustomPainter {
       final stories = mockData.where((e) => e.subject == subName).toList();
       for (var s in stories) {
         if (!isObjectASubject(s.object)) {
-          String objKey = makeObjectKey(s.object, s.status);
+          String objKey = makeObjectKey(s.object);
           if (nodePositions.containsKey(objKey)) {
             _drawDashedCircle(canvas, nodePositions[objKey]!, 54, paint);
           }
