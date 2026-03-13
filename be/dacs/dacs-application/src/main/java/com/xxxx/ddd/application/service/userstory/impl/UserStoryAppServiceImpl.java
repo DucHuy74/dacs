@@ -38,33 +38,39 @@ public class UserStoryAppServiceImpl implements UserStoryAppService {
 
     @Override
     @Transactional
-    public UserStoryResponse create(String workspaceId, UserStoryCreateRequest request) {
+    public List<UserStoryResponse> create(String workspaceId, List<UserStoryCreateRequest> requests) {
 
         Workspace workspace = workspaceRepository.findById(workspaceId)
                 .orElseThrow(() -> new AppException(ErrorCode.WORKSPACE_NOT_FOUND));
 
         Backlog backlog = workspace.getBacklog();
 
-        UserStory story = userStoryMapper.toEntity(request);
+        List<UserStory> stories = requests.stream()
+                .map(userStoryMapper::toEntity)
+                .toList();
 
-        story.setWorkspace(workspace);
-        story.setBacklog(backlog);
-        story.setStatus(UserStoryStatus.ToDo);
-        story.setSprint(null);
+        stories.forEach(story -> {
+            story.setWorkspace(workspace);
+            story.setBacklog(backlog);
+            story.setStatus(UserStoryStatus.ToDo);
+            story.setSprint(null);
+        });
 
-        story = userStoryRepository.save(story);
+        stories = userStoryRepository.saveAll(stories);
 
-        publisher.publishEvent(
-                new UserStoryCreatedEvent(
-                        story.getId(),
-                        story.getStoryText(),
-                        null,
-                        backlog.getId(),
-                        workspace.getId()
+        stories.forEach(story ->
+                publisher.publishEvent(
+                        new UserStoryCreatedEvent(
+                                story.getId(),
+                                story.getStoryText(),
+                                null,
+                                backlog.getId(),
+                                workspace.getId()
+                        )
                 )
         );
 
-        return userStoryMapper.toResponse(story);
+        return userStoryMapper.toResponses(stories);
     }
 
     @Override
